@@ -128,7 +128,6 @@ export default function BugCreate() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2">
-            <div className="grid grid-cols-1 md:grid-cols-2">
               <div className="px-4 md:px-6 py-4 border-b border-border md:border-r space-y-1">
                 <Label className="text-[12px] text-muted-foreground">Severity *</Label>
                 <Select value={form.severity} onValueChange={(v) => update("severity", v)}>
