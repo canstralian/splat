@@ -2,12 +2,11 @@ import { cn } from "@/lib/utils";
 import type { Enums } from "@/integrations/supabase/types";
 
 const statusConfig: Record<Enums<"bug_status">, { label: string; dotClass: string }> = {
-  new: { label: "New", dotClass: "bg-info" },
-  assigned: { label: "Assigned", dotClass: "bg-primary" },
+  backlog: { label: "Backlog", dotClass: "bg-info" },
   in_progress: { label: "In Progress", dotClass: "bg-warning" },
-  testing: { label: "Testing", dotClass: "bg-[hsl(280,60%,55%)]" },
-  resolved: { label: "Resolved", dotClass: "bg-success" },
-  closed: { label: "Closed", dotClass: "bg-muted-foreground" },
+  in_review: { label: "In Review", dotClass: "bg-[hsl(280,60%,55%)]" },
+  shipped: { label: "Shipped", dotClass: "bg-success" },
+  wont_fix: { label: "Won't Fix", dotClass: "bg-muted-foreground" },
 };
 
 export function StatusBadge({ status }: { status: Enums<"bug_status"> }) {
