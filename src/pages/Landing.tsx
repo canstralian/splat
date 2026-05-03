@@ -7,9 +7,9 @@ import { useEffect, useState } from "react";
 
 import { StackedLogo } from "@/components/StackedLogo";
 
-/** Apply slate accent on mount */
-const SLATE_HSL = "215 16% 47%";
-const SLATE_DARK = "215 14% 55%";
+/** Splat magenta accent */
+const SLATE_HSL = "322 85% 52%";
+const SLATE_DARK = "322 90% 60%";
 
 const LOGO_VARIANT = 1;
 const CUBE_SIZE = 840;
@@ -51,7 +51,7 @@ const Landing = () => {
         <div className="mx-auto flex h-[56px] max-w-[1200px] items-center justify-between">
           <Link to="/" className="flex items-center gap-2 -ml-0.5">
             <StackedLogo size={16} />
-            <span className="text-[14px] font-bold text-foreground tracking-[0.08em] uppercase">Triage</span>
+            <span className="text-[14px] font-bold text-foreground tracking-[0.08em] uppercase">Splat</span>
           </Link>
           <div className="flex items-center gap-2">
             <button
@@ -84,10 +84,10 @@ const Landing = () => {
             {/* Left column — text */}
             <div className="relative z-[3] flex-1 min-w-0 max-w-[540px]">
               <h1 className="text-[clamp(2rem,4vw,3.2rem)] font-[500] leading-[1.08] tracking-[-0.04em] text-foreground max-w-[540px]">
-                Bug tracking for teams that ship fast
+                Crush bugs faster. Ship more.
               </h1>
               <p className="mt-6 text-base leading-relaxed text-muted-foreground max-w-[420px]">
-                Purpose-built for engineering teams. Triage, track, and resolve issues without slowing down.
+                The bug tracker for indie devs and small studios. Lightweight, opinionated, and built to keep you in flow — not in meetings.
               </p>
               <div className="mt-10 flex items-center gap-4">
                 <Link to="/auth">
