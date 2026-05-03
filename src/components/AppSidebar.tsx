@@ -31,7 +31,7 @@ export function SidebarContent({ collapsed = false, onNavigate }: { collapsed?: 
         <StackedLogo size={16} color="currentColor" />
         {!collapsed && (
           <span className="font-bold uppercase tracking-[0.08em] text-[14px] text-sidebar-accent-foreground">
-            Triage
+            Splat
           </span>
         )}
       </div>

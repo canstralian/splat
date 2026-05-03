@@ -29,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Sheet>
           <div className="flex items-center gap-1.5">
             <StackedLogo size={16} />
-            <span className="font-bold uppercase tracking-[0.08em] text-[14px] text-foreground">Triage</span>
+            <span className="font-bold uppercase tracking-[0.08em] text-[14px] text-foreground">Splat</span>
           </div>
           <div className="w-7" />
         </header>
