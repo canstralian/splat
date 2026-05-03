@@ -15,7 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 type BugRow = Tables<"bugs">;
 type CommentRow = Tables<"comments">;
 
-const statusFlow: Enums<"bug_status">[] = ["new", "assigned", "in_progress", "testing", "resolved", "closed"];
+const statusFlow: Enums<"bug_status">[] = ["backlog", "in_progress", "in_review", "shipped", "wont_fix"];
 
 export default function BugDetail() {
   const { id } = useParams<{ id: string }>();

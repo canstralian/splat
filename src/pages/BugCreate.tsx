@@ -22,7 +22,9 @@ export default function BugCreate() {
   const [form, setForm] = useState({
     title: "", description: "", steps_to_reproduce: "",
     expected_behavior: "", actual_behavior: "",
-    severity: "medium" as Enums<"bug_severity">, environment: "",
+    severity: "minor" as Enums<"bug_severity">,
+    category: "logic" as Enums<"bug_category">,
+    environment: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +35,8 @@ export default function BugCreate() {
       steps_to_reproduce: form.steps_to_reproduce.trim(),
       expected_behavior: form.expected_behavior.trim(),
       actual_behavior: form.actual_behavior.trim(),
-      severity: form.severity, environment: form.environment.trim(),
+      severity: form.severity, category: form.category,
+      environment: form.environment.trim(),
     };
     if (!trimmed.title || !trimmed.description) {
       toast({ title: "Missing fields", description: "Title and description are required.", variant: "destructive" });
@@ -139,15 +142,29 @@ export default function BugCreate() {
                 </Select>
               </div>
               <div className="px-4 md:px-6 py-4 border-b border-border space-y-1">
-                <Label className="text-[12px] text-muted-foreground">Environment</Label>
-                <Input
-                  placeholder="e.g. Chrome 120, macOS 14"
-                  value={form.environment}
-                  onChange={(e) => update("environment", e.target.value)}
-                  maxLength={200}
-                  className="h-8 text-[13px] border-none shadow-none px-0 focus-visible:ring-0"
-                />
+                <Label className="text-[12px] text-muted-foreground">Category *</Label>
+                <Select value={form.category} onValueChange={(v) => update("category", v)}>
+                  <SelectTrigger className="h-8 text-[13px] border-none shadow-none px-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Constants.public.Enums.bug_category.map((c) => (
+                      <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="px-4 md:px-6 py-4 border-b border-border space-y-1">
+              <Label className="text-[12px] text-muted-foreground">Environment</Label>
+              <Input
+                placeholder="e.g. Chrome 120, macOS 14"
+                value={form.environment}
+                onChange={(e) => update("environment", e.target.value)}
+                maxLength={200}
+                className="h-8 text-[13px] border-none shadow-none px-0 focus-visible:ring-0"
+              />
             </div>
 
             <div className="px-4 md:px-6 py-4 flex gap-2">
