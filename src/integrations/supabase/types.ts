@@ -97,6 +97,7 @@ export type Database = {
         Row: {
           actual_behavior: string | null
           assignee_id: string | null
+          category: Database["public"]["Enums"]["bug_category"]
           created_at: string
           description: string
           environment: string | null
@@ -115,6 +116,7 @@ export type Database = {
         Insert: {
           actual_behavior?: string | null
           assignee_id?: string | null
+          category?: Database["public"]["Enums"]["bug_category"]
           created_at?: string
           description?: string
           environment?: string | null
@@ -133,6 +135,7 @@ export type Database = {
         Update: {
           actual_behavior?: string | null
           assignee_id?: string | null
+          category?: Database["public"]["Enums"]["bug_category"]
           created_at?: string
           description?: string
           environment?: string | null
@@ -404,14 +407,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      bug_severity: "critical" | "high" | "medium" | "low"
+      bug_category: "ui" | "logic" | "performance" | "infra" | "content"
+      bug_severity: "blocker" | "major" | "minor" | "polish"
       bug_status:
-        | "new"
-        | "assigned"
+        | "backlog"
         | "in_progress"
-        | "testing"
-        | "resolved"
-        | "closed"
+        | "in_review"
+        | "shipped"
+        | "wont_fix"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -540,14 +543,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      bug_severity: ["critical", "high", "medium", "low"],
+      bug_category: ["ui", "logic", "performance", "infra", "content"],
+      bug_severity: ["blocker", "major", "minor", "polish"],
       bug_status: [
-        "new",
-        "assigned",
+        "backlog",
         "in_progress",
-        "testing",
-        "resolved",
-        "closed",
+        "in_review",
+        "shipped",
+        "wont_fix",
       ],
     },
   },
