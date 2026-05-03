@@ -18,20 +18,20 @@ import {
 type BugRow = Tables<"bugs">;
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "hsl(199, 89%, 48%)", assigned: "hsl(234, 55%, 60%)",
-  in_progress: "hsl(38, 92%, 50%)", testing: "hsl(280, 60%, 55%)",
-  resolved: "hsl(142, 70%, 40%)", closed: "hsl(0, 0%, 50%)",
+  backlog: "hsl(199, 89%, 48%)",
+  in_progress: "hsl(38, 92%, 50%)", in_review: "hsl(280, 60%, 55%)",
+  shipped: "hsl(142, 70%, 40%)", wont_fix: "hsl(0, 0%, 50%)",
 };
 const STATUS_LABELS: Record<string, string> = {
-  new: "New", assigned: "Assigned", in_progress: "In Progress",
-  testing: "Testing", resolved: "Resolved", closed: "Closed",
+  backlog: "Backlog", in_progress: "In Progress", in_review: "In Review",
+  shipped: "Shipped", wont_fix: "Won't Fix",
 };
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: "hsl(0, 72%, 51%)", high: "hsl(25, 95%, 53%)",
-  medium: "hsl(38, 92%, 50%)", low: "hsl(142, 70%, 40%)",
+  blocker: "hsl(0, 72%, 51%)", major: "hsl(25, 95%, 53%)",
+  minor: "hsl(38, 92%, 50%)", polish: "hsl(142, 70%, 40%)",
 };
 const SEVERITY_LABELS: Record<string, string> = {
-  critical: "Critical", high: "High", medium: "Medium", low: "Low",
+  blocker: "Blocker", major: "Major", minor: "Minor", polish: "Polish",
 };
 
 export default function Analytics() {
@@ -48,8 +48,8 @@ export default function Analytics() {
 
   const stats = useMemo(() => {
     const total = bugs.length;
-    const resolved = bugs.filter(b => b.status === "resolved" || b.status === "closed").length;
-    const critical = bugs.filter(b => b.severity === "critical").length;
+    const resolved = bugs.filter(b => b.status === "shipped" || b.status === "wont_fix").length;
+    const critical = bugs.filter(b => b.severity === "blocker").length;
     const thirtyDaysAgo = subDays(new Date(), 30);
     const recent = bugs.filter(b => parseISO(b.created_at) >= thirtyDaysAgo).length;
     return { total, resolutionRate: total ? Math.round((resolved / total) * 100) : 0, avgPerDay: Math.round((recent / 30) * 10) / 10, critical };
@@ -78,7 +78,7 @@ export default function Analytics() {
   const trendChartConfig: ChartConfig = { count: { label: "Bugs Created", color: "hsl(234, 55%, 60%)" } };
 
   const areaData = useMemo(() => {
-    const resolvedStatuses = new Set(["resolved", "closed"]);
+    const resolvedStatuses = new Set(["shipped", "wont_fix"]);
     const result: { date: string; open: number; resolved: number }[] = [];
     for (let i = 29; i >= 0; i--) {
       const day = startOfDay(subDays(new Date(), i));

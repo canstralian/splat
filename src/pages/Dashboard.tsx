@@ -17,29 +17,28 @@ import { NeonPatternDefs } from "@/components/NeonPatternDefs";
 import { useNeonCharts } from "@/hooks/use-neon-charts";
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "hsl(var(--info))",
-  assigned: "hsl(var(--primary))",
+  backlog: "hsl(var(--info))",
   in_progress: "hsl(var(--warning))",
-  testing: "hsl(280, 60%, 55%)",
-  resolved: "hsl(var(--success))",
-  closed: "hsl(var(--muted-foreground))",
+  in_review: "hsl(280, 60%, 55%)",
+  shipped: "hsl(var(--success))",
+  wont_fix: "hsl(var(--muted-foreground))",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "New", assigned: "Assigned", in_progress: "In Progress",
-  testing: "Testing", resolved: "Resolved", closed: "Closed",
+  backlog: "Backlog", in_progress: "In Progress", in_review: "In Review",
+  shipped: "Shipped", wont_fix: "Won't Fix",
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: "hsl(var(--severity-critical))", high: "hsl(var(--severity-high))",
-  medium: "hsl(var(--severity-medium))", low: "hsl(var(--severity-low))",
+  blocker: "hsl(var(--severity-critical))", major: "hsl(var(--severity-high))",
+  minor: "hsl(var(--severity-medium))", polish: "hsl(var(--severity-low))",
 };
 const SEVERITY_LABELS: Record<string, string> = {
-  critical: "Critical", high: "High", medium: "Medium", low: "Low",
+  blocker: "Blocker", major: "Major", minor: "Minor", polish: "Polish",
 };
 
 type BugRow = Tables<"bugs">;
-const statusColumns: Enums<"bug_status">[] = ["new", "assigned", "in_progress", "testing", "resolved", "closed"];
+const statusColumns: Enums<"bug_status">[] = ["backlog", "in_progress", "in_review", "shipped", "wont_fix"];
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -71,9 +70,9 @@ export default function Dashboard() {
 
   const counts = {
     total: bugs.length,
-    critical: bugs.filter(b => b.severity === "critical").length,
-    open: bugs.filter(b => !["resolved", "closed"].includes(b.status)).length,
-    resolved: bugs.filter(b => b.status === "resolved" || b.status === "closed").length,
+    critical: bugs.filter(b => b.severity === "blocker").length,
+    open: bugs.filter(b => !["shipped", "wont_fix"].includes(b.status)).length,
+    resolved: bugs.filter(b => b.status === "shipped" || b.status === "wont_fix").length,
   };
 
   const statusData = useMemo(() => {
