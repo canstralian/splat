@@ -15,6 +15,7 @@ import BugList from "./pages/BugList";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import StructuredData from "@/components/StructuredData";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <StructuredData />
         <Toaster />
         <Sonner />
         <BrowserRouter>
