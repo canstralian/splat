@@ -1,26 +1,28 @@
+## Add Schema.org structured data for Splat
 
+Inject two JSON-LD blocks into `index.html` `<head>` so search engines can produce richer results (sitelinks, app cards, knowledge panels) for Splat.
 
-# Security Hardening Plan
+### What gets added
 
-## Security Scan Results
-The scan found 10 issues. For a team bug tracker, most broad SELECT policies are intentional (team members need to see bugs, comments, profiles, activity). The real fixes needed are:
+**1. Organization schema** — identifies Splat as the publishing entity.
 
-## Changes
+Fields: `@type: Organization`, `name: "Splat"`, `url`, `logo` (favicon URL), `description`, `sameAs` (empty array, ready for socials later).
 
-### 1. Database Migration — Tighten RLS Policies
-- **company_settings SELECT**: Change from `true` to `auth.uid() = user_id` (only owner sees their company settings)
-- **invitations SELECT**: Change from `true` to `auth.uid() = invited_by OR has_role(auth.uid(), 'admin')` (only inviter/admins see invitations)
-- **user_roles**: Drop the redundant "Authenticated can view all roles" policy. Keep "Users can view own roles" and "Admins can manage roles". Add a new SELECT policy for admins: `has_role(auth.uid(), 'admin')`. For the Team tab, use the existing `has_role` security definer function pattern instead of direct table access.
-- **Enable leaked password protection** via auth config
+**2. SoftwareApplication schema** — describes the product itself, eligible for app rich results.
 
-### 2. Settings.tsx — Team Tab Fix
-After tightening `user_roles` and `profiles` visibility, the Team tab needs to fetch team members via a security definer function that returns profiles with roles (so non-admins can see team members without direct table access).
+Fields: `@type: SoftwareApplication`, `name: "Splat"`, `applicationCategory: "DeveloperApplication"`, `operatingSystem: "Web"`, `description: "The bug tracker for indie devs and small studios. Crush bugs faster. Ship more."`, `url`, `image` (existing OG image), `offers` ($0 free tier), `publisher` (referencing the Organization).
 
-### 3. New Security Definer Function
-Create `get_team_members()` — returns user_id, full_name, job_title, avatar_url, and role for all users. Called by the Team tab instead of directly querying profiles + user_roles.
+### Where it goes
 
-## Files Modified
-- New SQL migration: drop/recreate policies for company_settings, invitations, user_roles; create `get_team_members()` function
-- `src/pages/Settings.tsx` — update Team tab to call the new function
-- Auth config: enable leaked password protection
+Two `<script type="application/ld+json">` blocks placed inside `<head>` in `index.html`, just below the existing Twitter meta tags and above the favicon link. Static markup — no runtime JS, no React changes — so crawlers see it immediately on the initial HTML response.
 
+### Notes / trade-offs
+
+- URL will use the production/preview origin as a placeholder (`https://splat.app` style placeholder is risky — instead I'll use the current preview URL `https://id-preview--19ed109f-6927-46f7-b4a6-1ffdd2b10c0b.lovable.app` so it's valid until you publish on a custom domain. Easy one-line update later.)
+- No `aggregateRating` / `review` included — adding fake ratings violates Google's structured data policy.
+- `sameAs` left as empty array; populate when social profiles exist.
+- No new files, no dependencies, no DB changes.
+
+### Validation
+
+After the change, the markup can be validated via Google's Rich Results Test by pasting the rendered HTML.
