@@ -23,10 +23,10 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <StructuredData />
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <StructuredData />
           <AuthProvider>
             <Routes>
               <Route path="/auth" element={<Auth />} />
