@@ -56,7 +56,7 @@ export default function Billing() {
   const cancel = () => callAction({ action: "cancel" }, "Cancellation scheduled at end of period");
   const resume = () => callAction({ action: "resume" }, "Subscription resumed");
   const changePlan = (newPriceId: string) =>
-    callAction({ action: "change_plan", newPriceId }, "Plan change scheduled for next renewal");
+    callAction({ action: "change_plan", newPriceId }, "Plan updated — no immediate charge, new price applies from next renewal");
 
   const currentPriceId = subscription?.price_id;
 
