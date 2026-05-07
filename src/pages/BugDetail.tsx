@@ -66,7 +66,7 @@ export default function BugDetail() {
     if (!bug || !user) return;
     const { error } = await supabase.from("bugs").update({ status: newStatus }).eq("id", bug.id);
     if (error) {
-      toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
+      (console.error("Failed to update status", error), toast({ title: "Failed to update status", description: "Something went wrong. Please try again.", variant: "destructive" }));
     } else {
       await supabase.from("activity_log").insert({
         bug_id: bug.id, user_id: user.id, action: "status_change",
@@ -82,7 +82,7 @@ export default function BugDetail() {
     const { error } = await supabase.from("comments").insert({
       bug_id: bug.id, user_id: user.id, content: newComment.trim(),
     });
-    if (error) toast({ title: "Failed to add comment", description: error.message, variant: "destructive" });
+    if (error) (console.error("Failed to add comment", error), toast({ title: "Failed to add comment", description: "Something went wrong. Please try again.", variant: "destructive" }));
     else setNewComment("");
     setSubmittingComment(false);
   };

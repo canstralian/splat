@@ -36,9 +36,13 @@ export default function Auth() {
     setIsGoogleLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (error) toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
+      if (error) {
+        console.error("Google sign-in error:", error);
+        toast({ title: "Google sign-in failed", description: "Please try again.", variant: "destructive" });
+      }
     } catch (error: any) {
-      toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
+      console.error("Google sign-in error:", error);
+      toast({ title: "Google sign-in failed", description: "Please try again.", variant: "destructive" });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -51,7 +55,8 @@ export default function Auth() {
       await signIn(loginEmail, loginPassword);
       toast({ title: "Welcome back!" });
     } catch (error: any) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      console.error("Login error:", error);
+      toast({ title: "Login failed", description: "Invalid credentials or account issue — please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -68,7 +73,9 @@ export default function Auth() {
       await signUp(signupEmail, signupPassword, signupName);
       toast({ title: "Account created!", description: "Check your email to confirm your account." });
     } catch (error: any) {
-      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+      console.error("Signup error:", error);
+      // Generic message to prevent user enumeration
+      toast({ title: "Signup failed", description: "Unable to create account. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
