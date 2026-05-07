@@ -56,12 +56,12 @@ function ProfileTab() {
     setUploadingAvatar(true);
     const filePath = `${user.id}/avatar.${fileExt}`;
     const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
-    if (uploadError) { toast({ title: "Upload failed", description: uploadError.message, variant: "destructive" }); setUploadingAvatar(false); return; }
+    if (uploadError) { console.error("Avatar upload failed", uploadError); toast({ title: "Upload failed", description: "Something went wrong. Please try again.", variant: "destructive" }); setUploadingAvatar(false); return; }
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
     const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     const { error: updateError } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
     setUploadingAvatar(false);
-    if (updateError) toast({ title: "Error", description: updateError.message, variant: "destructive" });
+    if (updateError) { console.error("Profile update failed", updateError); toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }); }
     else { toast({ title: "Avatar updated" }); await refreshProfile(); }
   };
 
