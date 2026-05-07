@@ -13,8 +13,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   User, Building2, Users, Bell, Settings as SettingsIcon,
-  Mail, Trash2, Shield, Send, AlertTriangle, Loader2, Camera
+  Mail, Trash2, Shield, Send, AlertTriangle, Loader2, Camera,
+  History, ChevronLeft, ChevronRight
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
 
 // ─── Profile Tab ────────────────────────────────────────────────────────────────
 
