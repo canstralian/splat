@@ -592,6 +592,9 @@ export default function Settings() {
                 <TabsTrigger value="general" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
                   <SettingsIcon className="h-3.5 w-3.5" /> General
                 </TabsTrigger>
+                <TabsTrigger value="audit" className="justify-start gap-1.5 text-[12px] h-7 px-2 data-[state=active]:bg-muted w-full">
+                  <History className="h-3.5 w-3.5" /> Audit Log
+                </TabsTrigger>
               </TabsList>
             </div>
 
