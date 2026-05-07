@@ -72,17 +72,49 @@ Deno.serve(async (req) => {
       if (!priceData.data?.length) throw new Error('Price not found');
       const paddlePriceId = priceData.data[0].id;
 
+      const requestBody = {
+        items: [{ price_id: paddlePriceId, quantity: 1 }],
+        proration_billing_mode: 'do_not_bill',
+        on_payment_failure: 'prevent_change',
+      };
+      console.log('[change_plan] PATCH /subscriptions/' + sub.paddle_subscription_id, JSON.stringify({
+        userId: user.id,
+        env,
+        currentPriceId: sub.price_id,
+        newExternalPriceId: newPriceId,
+        newPaddlePriceId: paddlePriceId,
+        requestBody,
+      }));
+
       // End-of-period change with no immediate billing
       const res = await gatewayFetch(env, `/subscriptions/${sub.paddle_subscription_id}`, {
         method: 'PATCH',
-        body: JSON.stringify({
-          items: [{ price_id: paddlePriceId, quantity: 1 }],
-          proration_billing_mode: 'do_not_bill',
-          on_payment_failure: 'prevent_change',
-        }),
+        body: JSON.stringify(requestBody),
       });
       const body = await res.text();
+      console.log('[change_plan] response', res.status, body);
       if (!res.ok) throw new Error(`Change plan failed: ${body}`);
+
+      // Parse the response and confirm no immediate billing happened
+      try {
+        const parsed = JSON.parse(body);
+        const sched = parsed.data?.scheduled_change;
+        const nextBilledAt = parsed.data?.next_billed_at;
+        const items = parsed.data?.items?.map((i: any) => ({
+          priceId: i.price?.id,
+          externalPriceId: i.price?.import_meta?.external_id,
+          nextBilledAt: i.next_billed_at,
+        }));
+        console.log('[change_plan] verified', JSON.stringify({
+          scheduledChange: sched,
+          nextBilledAt,
+          items,
+          note: sched ? 'Change is SCHEDULED for next renewal — no immediate charge.' : 'No scheduled_change — change applied immediately (unexpected with do_not_bill).',
+        }));
+      } catch (_) {
+        console.log('[change_plan] could not parse response for verification');
+      }
+
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
