@@ -76,7 +76,7 @@ function ProfileTab() {
     setSaving(true);
     const { error } = await supabase.from("profiles").update({ full_name: fullName, job_title: jobTitle }).eq("user_id", user.id);
     setSaving(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }));
     else { toast({ title: "Profile updated" }); await refreshProfile(); }
   };
 
@@ -85,7 +85,7 @@ function ProfileTab() {
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setChangingPassword(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }));
     else { toast({ title: "Password updated" }); setNewPassword(""); }
   };
 
@@ -160,10 +160,10 @@ function CompanyTab() {
     setSaving(true);
     if (existingId) {
       const { error } = await supabase.from("company_settings").update(form).eq("id", existingId);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else toast({ title: "Company settings saved" });
+      if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" })); else toast({ title: "Company settings saved" });
     } else {
       const { data, error } = await supabase.from("company_settings").insert({ ...form, user_id: user.id }).select().single();
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else { setExistingId(data.id); toast({ title: "Company settings created" }); }
+      if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" })); else { setExistingId(data.id); toast({ title: "Company settings created" }); }
     }
     setSaving(false);
   };
@@ -220,13 +220,13 @@ function TeamTab() {
     setSending(true);
     const { error } = await supabase.from("invitations").insert({ email: inviteEmail, role: inviteRole as any, invited_by: user.id });
     setSending(false);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }));
     else { toast({ title: "Invitation sent", description: `Invited ${inviteEmail}` }); setInviteEmail(""); fetchData(); }
   };
 
   const handleRevoke = async (id: string) => {
     const { error } = await supabase.from("invitations").delete().eq("id", id);
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }));
     else { toast({ title: "Invitation revoked" }); fetchData(); }
   };
 
@@ -317,10 +317,10 @@ function EmailTab() {
     setSaving(true);
     if (existingId) {
       const { error } = await supabase.from("notification_preferences").update(prefs).eq("id", existingId);
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else toast({ title: "Preferences saved" });
+      if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" })); else toast({ title: "Preferences saved" });
     } else {
       const { data, error } = await supabase.from("notification_preferences").insert({ ...prefs, user_id: user.id }).select().single();
-      if (error) toast({ title: "Error", description: error.message, variant: "destructive" }); else { setExistingId(data.id); toast({ title: "Preferences saved" }); }
+      if (error) (console.error("Error", error), toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" })); else { setExistingId(data.id); toast({ title: "Preferences saved" }); }
     }
     setSaving(false);
   };
@@ -452,7 +452,7 @@ function AuditLogTab() {
       if (actionFilter !== "all") q = q.eq("action", actionFilter);
       const { data, count, error } = await q;
       if (error) {
-        toast({ title: "Failed to load audit log", description: error.message, variant: "destructive" });
+        (console.error("Failed to load audit log", error), toast({ title: "Failed to load audit log", description: "Something went wrong. Please try again.", variant: "destructive" }));
         setLoading(false);
         return;
       }
