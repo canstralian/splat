@@ -474,10 +474,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_subscription_tier: {
-        Args: { check_env?: string; user_uuid: string }
-        Returns: string
-      }
+      get_subscription_tier: { Args: { check_env?: string }; Returns: string }
       get_team_members: {
         Args: never
         Returns: {
@@ -489,7 +486,7 @@ export type Database = {
         }[]
       }
       has_active_subscription: {
-        Args: { check_env?: string; user_uuid: string }
+        Args: { check_env?: string }
         Returns: boolean
       }
       has_role: {
