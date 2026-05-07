@@ -15,6 +15,7 @@ import BugList from "./pages/BugList";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Billing from "./pages/Billing";
+import SecurityAudit from "./pages/SecurityAudit";
 import NotFound from "./pages/NotFound";
 import StructuredData from "@/components/StructuredData";
 
