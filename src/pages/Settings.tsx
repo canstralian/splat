@@ -604,6 +604,7 @@ export default function Settings() {
               <TabsContent value="team" className="m-0"><TeamTab /></TabsContent>
               <TabsContent value="email" className="m-0"><EmailTab /></TabsContent>
               <TabsContent value="general" className="m-0"><GeneralTab /></TabsContent>
+              <TabsContent value="audit" className="m-0"><AuditLogTab /></TabsContent>
             </div>
           </Tabs>
         </div>
