@@ -238,6 +238,39 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          company_settings_id: string | null
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          company_settings_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          company_settings_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           created_at: string
