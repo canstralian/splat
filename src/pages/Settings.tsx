@@ -61,7 +61,7 @@ function ProfileTab() {
     const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
     const { error: updateError } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
     setUploadingAvatar(false);
-    if (updateError) toast({ title: "Error", description: updateError.message, variant: "destructive" });
+    if (updateError) { console.error("Profile update failed", updateError); toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" }); }
     else { toast({ title: "Avatar updated" }); await refreshProfile(); }
   };
 
