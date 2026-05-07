@@ -14,6 +14,7 @@ import BugDetail from "./pages/BugDetail";
 import BugList from "./pages/BugList";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 import StructuredData from "@/components/StructuredData";
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/bugs/:id" element={<ProtectedRoute><BugDetail /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
