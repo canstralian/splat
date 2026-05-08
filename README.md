@@ -466,6 +466,318 @@ Paddle → Splat webhook. Verifies the `paddle-signature` header against `PAYMEN
 
 All edge functions return JSON `{ "error": "<generic message>" }` and log the underlying exception via `console.error`. Never surface raw error strings in the UI — use the toast helpers in `src/hooks/use-toast.ts`.
 
+### OpenAPI 3.1 specification (edge functions)
+
+The following spec describes the three deployed edge functions. It is hand-maintained — keep it in sync when function signatures change. Paste into [Swagger Editor](https://editor.swagger.io/) to render or use as a contract for client codegen.
+
+```yaml
+openapi: 3.1.0
+info:
+  title: Splat Edge Functions API
+  version: 1.0.0
+  description: |
+    Deno edge functions deployed on Lovable Cloud. Two are JWT-gated and called
+    from the SPA (`get-paddle-price`, `update-subscription`); one is a Paddle
+    webhook receiver verified by HMAC signature (`payments-webhook`).
+  contact:
+    name: Splat
+    url: https://issue-buddy-system.lovable.app
+servers:
+  - url: https://{projectRef}.supabase.co/functions/v1
+    description: Lovable Cloud edge function gateway
+    variables:
+      projectRef:
+        default: ppyhmhgczcdsbbhnxjct
+        description: Supabase project ref (`VITE_SUPABASE_PROJECT_ID`)
+tags:
+  - name: Billing
+    description: Paddle checkout and subscription management
+  - name: Webhooks
+    description: Inbound provider callbacks
+security:
+  - supabaseJwt: []
+paths:
+  /get-paddle-price:
+    post:
+      tags: [Billing]
+      summary: Resolve a human-readable Paddle price ID
+      description: |
+        Looks up a Paddle price by its `external_id` and returns the internal
+        `pri_…` ID required by `Paddle.Checkout.open()`. Requires an
+        authenticated Supabase session.
+      operationId: getPaddlePrice
+      security:
+        - supabaseJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetPaddlePriceRequest'
+            examples:
+              starterMonthly:
+                value:
+                  priceId: starter_monthly
+                  environment: sandbox
+      responses:
+        '200':
+          description: Price resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPaddlePriceResponse'
+              examples:
+                success:
+                  value:
+                    paddleId: pri_01h1vjes1y163xfj1rh1tkfb65
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Price not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing:
+                  value:
+                    error: Price not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+      callbacks: {}
+
+  /update-subscription:
+    post:
+      tags: [Billing]
+      summary: Schedule a plan change at next renewal
+      description: |
+        Switches the caller's subscription to a new price. The change is
+        scheduled to take effect at `current_period_end` with no immediate
+        proration charge.
+      operationId: updateSubscription
+      security:
+        - supabaseJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubscriptionRequest'
+            examples:
+              upgradeToTeam:
+                value:
+                  subscriptionId: sub_01hxyz...
+                  newPriceId: team_monthly
+                  environment: sandbox
+      responses:
+        '200':
+          description: Plan change scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateSubscriptionResponse'
+              examples:
+                scheduled:
+                  value:
+                    success: true
+                    scheduledChange:
+                      action: switch
+                      effectiveAt: '2026-06-01T00:00:00.000Z'
+        '400':
+          description: Validation error from Paddle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Subscription does not belong to the caller
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /payments-webhook:
+    post:
+      tags: [Webhooks]
+      summary: Paddle subscription webhook receiver
+      description: |
+        Verifies the `paddle-signature` header against the configured webhook
+        secret and upserts into `public.subscriptions` using the service-role
+        key. **Do not send a Supabase JWT** — auth is signature-only.
+      operationId: paymentsWebhook
+      security: []
+      parameters:
+        - in: query
+          name: env
+          required: true
+          schema:
+            type: string
+            enum: [sandbox, live]
+          description: Selects the webhook secret and target row environment.
+        - in: header
+          name: paddle-signature
+          required: true
+          schema:
+            type: string
+          description: HMAC signature provided by Paddle.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaddleWebhookEvent'
+            examples:
+              subscriptionCreated:
+                value:
+                  eventType: subscription.created
+                  data:
+                    id: sub_01hxyz...
+                    customerId: ctm_01hxyz...
+                    status: active
+                    currentBillingPeriod:
+                      startsAt: '2026-05-08T00:00:00Z'
+                      endsAt: '2026-06-08T00:00:00Z'
+                    customData:
+                      userId: 00000000-0000-0000-0000-000000000000
+                    items:
+                      - price:
+                          id: pri_01h1vjes...
+                          importMeta: { externalId: starter_monthly }
+                        product:
+                          id: pro_01h1vjes...
+                          importMeta: { externalId: starter_plan }
+      responses:
+        '200':
+          description: Event acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean }
+              examples:
+                ok:
+                  value: { received: true }
+        '400':
+          description: Signature failure or handler exception
+          content:
+            text/plain:
+              schema: { type: string }
+              examples:
+                bad:
+                  value: Webhook error
+        '405':
+          description: Method not allowed (only POST is accepted)
+          content:
+            text/plain:
+              schema: { type: string }
+
+components:
+  securitySchemes:
+    supabaseJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase session JWT (`supabase.auth.getSession()`).
+  responses:
+    Unauthorized:
+      description: Missing or invalid Supabase session
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            unauth:
+              value: { error: Unauthorized }
+    InternalError:
+      description: Unhandled exception (details logged server-side)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            generic:
+              value: { error: An internal error occurred }
+  schemas:
+    Environment:
+      type: string
+      enum: [sandbox, live]
+      description: |
+        Paddle environment. Stored as `sandbox` / `live` in the DB; the SPA
+        derives it from the `VITE_PAYMENTS_CLIENT_TOKEN` prefix.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: An internal error occurred
+    GetPaddlePriceRequest:
+      type: object
+      required: [priceId, environment]
+      properties:
+        priceId:
+          type: string
+          description: Human-readable price external ID
+          example: starter_monthly
+        environment:
+          $ref: '#/components/schemas/Environment'
+    GetPaddlePriceResponse:
+      type: object
+      required: [paddleId]
+      properties:
+        paddleId:
+          type: string
+          pattern: '^pri_[a-z0-9]+$'
+          example: pri_01h1vjes1y163xfj1rh1tkfb65
+    UpdateSubscriptionRequest:
+      type: object
+      required: [subscriptionId, newPriceId, environment]
+      properties:
+        subscriptionId:
+          type: string
+          example: sub_01hxyz...
+        newPriceId:
+          type: string
+          description: Human-readable price external ID to switch to
+          example: team_monthly
+        environment:
+          $ref: '#/components/schemas/Environment'
+    UpdateSubscriptionResponse:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
+        scheduledChange:
+          type: object
+          nullable: true
+          properties:
+            action:
+              type: string
+              enum: [cancel, switch, pause, resume]
+            effectiveAt:
+              type: string
+              format: date-time
+    PaddleWebhookEvent:
+      type: object
+      required: [eventType, data]
+      properties:
+        eventType:
+          type: string
+          enum:
+            - subscription.created
+            - subscription.updated
+            - subscription.canceled
+            - transaction.completed
+            - transaction.payment_failed
+        data:
+          type: object
+          description: Event payload (shape varies by `eventType`).
+          additionalProperties: true
+```
+
+
+
 ## Deployment
 
 Splat is designed to be deployed via Lovable:
