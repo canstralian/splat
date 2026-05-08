@@ -38,10 +38,12 @@ export default function Billing() {
     });
   };
 
-  const callAction = async (
-    payload: Omit<UpdateSubscriptionRequest, "environment">,
-    successMsg: string,
-  ) => {
+  type ActionPayload =
+    | { action: "cancel" }
+    | { action: "resume" }
+    | { action: "change_plan"; newPriceId: string };
+
+  const callAction = async (payload: ActionPayload, successMsg: string) => {
     setBusy(true);
     try {
       await invokeEdgeFunction("update-subscription", {
