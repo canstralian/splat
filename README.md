@@ -260,6 +260,212 @@ npm test
 
 If you discover a vulnerability, please open a private issue or contact the maintainer directly — do not disclose publicly until a fix is shipped.
 
+## API reference
+
+Splat does not expose a custom REST API. The frontend talks to **Lovable Cloud** through `supabase-js` (PostgREST + Realtime) and to a small set of **Deno edge functions** for Paddle billing. This section documents both surfaces, the request/response shape they expect, and the RLS/auth rules that gate them.
+
+### Auth header & client
+
+All authenticated calls require a Supabase session JWT. The browser SDK attaches it automatically:
+
+```ts
+import { supabase } from "@/integrations/supabase/client";
+// supabase-js sends `Authorization: Bearer <access_token>` and `apikey: <publishable key>`
+```
+
+For direct `fetch()` calls to PostgREST or edge functions:
+
+```http
+Authorization: Bearer <supabase access_token>
+apikey: <VITE_SUPABASE_PUBLISHABLE_KEY>
+Content-Type: application/json
+```
+
+Unauthenticated calls are rejected by RLS (tables) or by an explicit `getUser()` check (edge functions).
+
+### Database tables (PostgREST)
+
+Base URL: `${VITE_SUPABASE_URL}/rest/v1/<table>`. All tables have RLS **enabled**; the policies below are the *only* paths that succeed.
+
+#### `bugs`
+
+Sequential `SPL-XXXXX` tracking IDs assigned by the `generate_tracking_id()` trigger.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | uuid | PK, server-generated |
+| `tracking_id` | text | Auto: `SPL-00001`, `SPL-00002`, … |
+| `title` | text | required |
+| `description` | text | default `''` |
+| `steps_to_reproduce` / `expected_behavior` / `actual_behavior` | text | optional |
+| `status` | enum | `backlog` \| `in_progress` \| `in_review` \| `shipped` \| `wont_fix` |
+| `severity` | enum | `blocker` \| `major` \| `minor` \| `polish` |
+| `category` | enum | `ui` \| `logic` \| `performance` \| `infra` \| `content` |
+| `environment` | text | free-form (e.g. `prod`, `staging`) |
+| `reporter_id` | uuid | required, must equal `auth.uid()` on insert |
+| `assignee_id` / `project_id` | uuid | optional |
+| `sla_deadline` | timestamptz | optional |
+| `created_at` / `updated_at` | timestamptz | server-managed |
+
+**RLS**
+
+| Op | Who |
+| --- | --- |
+| SELECT | any authenticated user |
+| INSERT | authenticated, `reporter_id = auth.uid()` |
+| UPDATE | reporter, assignee, or `admin` role |
+| DELETE | `admin` role only |
+
+#### `comments`
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `bug_id` | uuid | required |
+| `user_id` | uuid | required, must equal `auth.uid()` |
+| `content` | text | required |
+
+**RLS:** SELECT any authenticated; INSERT/UPDATE/DELETE only own rows. Realtime-enabled.
+
+#### `attachments`
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `bug_id` | uuid | required |
+| `user_id` | uuid | must equal `auth.uid()` on insert |
+| `file_name` / `file_path` | text | required |
+| `mime_type` | text | optional |
+| `file_size` | bigint | bytes |
+
+**RLS:** SELECT any authenticated; INSERT only own; DELETE only own. Files live in the private `bug-attachments` bucket.
+
+#### `activity_log`
+
+Append-only audit of bug changes (`status`, `assignee`, etc.). SELECT any authenticated; INSERT only with `auth.uid() = user_id`; no UPDATE/DELETE.
+
+#### `profiles`
+
+`user_id`, `full_name`, `job_title`, `avatar_url`. Auto-created by the `handle_new_user()` trigger. SELECT any authenticated; INSERT/UPDATE only own row.
+
+#### `user_roles`
+
+`user_id`, `role` (`admin` \| `moderator` \| `user`). SELECT any authenticated (team-wide visibility). INSERT/UPDATE/DELETE require `admin` role. Always check membership via `public.has_role(_user_id, _role)` to avoid RLS recursion.
+
+#### `projects`
+
+`name`, `description`, `created_by`. SELECT any authenticated; full ALL access for `admin` role.
+
+#### `invitations`
+
+`email`, `role`, `invited_by`, `status`, `expires_at` (default `now() + 7 days`). SELECT/DELETE for inviter or admin. INSERT requires `invited_by = auth.uid()` AND (`role = 'user'` OR caller is admin).
+
+#### `notification_preferences`
+
+Boolean flags: `email_on_assignment`, `email_on_comment`, `email_on_status_change`, `email_on_new_bug`, `email_on_sla_breach`, `daily_digest`. SELECT/INSERT/UPDATE only own row.
+
+#### `company_settings` & `company_settings_audit`
+
+Owner-only CRUD on `company_settings`. Every UPDATE/DELETE is mirrored into `company_settings_audit` by the `log_company_settings_change()` trigger. Audit rows are visible to the owner or any `admin`; inserts/updates/deletes are blocked.
+
+#### `subscriptions`
+
+Written by edge functions only.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `user_id` | uuid | links to `auth.users` |
+| `paddle_subscription_id` | text | unique key for upserts |
+| `paddle_customer_id` | text | |
+| `product_id` / `price_id` | text | human-readable IDs (`starter_plan`, `starter_monthly`) |
+| `status` | text | `active` \| `trialing` \| `past_due` \| `canceled` |
+| `current_period_start` / `current_period_end` | timestamptz | |
+| `cancel_at_period_end` | bool | |
+| `scheduled_change_action` / `scheduled_change_effective_at` | text / timestamptz | downgrade/upgrade scheduling |
+| `environment` | text | `sandbox` \| `live` — **always filter on this** |
+
+**RLS:** users SELECT only their own row; `service_role` has full ALL access.
+
+### SQL helper functions (RPC)
+
+Call via `supabase.rpc('<name>', { ...args })`. All have `SET search_path = public` and the security mode shown.
+
+| Function | Args | Returns | Security | Purpose |
+| --- | --- | --- | --- | --- |
+| `has_role` | `_user_id uuid`, `_role app_role` | `bool` | DEFINER | RLS-safe role check |
+| `has_active_subscription` | `check_env text` (default `'live'`) | `bool` | INVOKER | Gate premium features |
+| `get_subscription_tier` | `check_env text` (default `'live'`) | `text` (product id) | INVOKER | Return current tier |
+| `get_team_members` | — | `setof (user_id, full_name, job_title, avatar_url, role)` | INVOKER | Team directory; requires `auth.uid()` |
+
+### Storage
+
+Base URL: `${VITE_SUPABASE_URL}/storage/v1`.
+
+| Bucket | Public | Read | Write |
+| --- | --- | --- | --- |
+| `avatars` | ✅ (CDN URLs resolve) | Listing scoped to `auth.uid()`-prefixed folder | Owner folder only, ≤ 5 MB |
+| `bug-attachments` | ❌ | Authenticated via signed URLs | Owner folder only |
+
+Upload paths must start with the user's UID, e.g. `avatars/<uid>/avatar.png` — enforced by `storage.foldername(name)[1] = (auth.uid())::text`.
+
+### Realtime
+
+The `supabase_realtime` publication includes `bugs` and `comments`. Subscribe with the JS SDK:
+
+```ts
+supabase
+  .channel("bugs")
+  .on("postgres_changes", { event: "*", schema: "public", table: "bugs" }, handler)
+  .subscribe();
+```
+
+Realtime payloads still respect RLS — clients only receive rows they could `SELECT`.
+
+### Edge functions
+
+Base URL: `${VITE_SUPABASE_URL}/functions/v1/<name>`. CORS is open (`*`); auth is enforced per-function as noted.
+
+#### `POST /functions/v1/get-paddle-price`
+
+Resolves a human-readable Paddle price external ID to its internal `pri_…` ID for checkout.
+
+- **Auth:** requires `Authorization: Bearer <jwt>`; rejects with `401` if `supabase.auth.getUser()` fails.
+- **Request:**
+  ```json
+  { "priceId": "starter_monthly", "environment": "sandbox" }
+  ```
+- **Response 200:** `{ "paddleId": "pri_01h…" }`
+- **Response 404:** `{ "error": "Price not found" }`
+- **Response 500:** `{ "error": "An internal error occurred" }` (details logged server-side)
+
+#### `POST /functions/v1/update-subscription`
+
+Schedules a plan change at the next renewal (no immediate proration).
+
+- **Auth:** requires session JWT; the function loads the user's own subscription before mutating.
+- **Request:**
+  ```json
+  {
+    "subscriptionId": "sub_01h…",
+    "newPriceId": "team_monthly",
+    "environment": "sandbox"
+  }
+  ```
+- **Response 200:** `{ "success": true, "scheduledChange": { "action": "…", "effectiveAt": "…" } }`
+- **Errors:** `401` unauthenticated, `403` if the subscription does not belong to the caller, `400` for Paddle validation errors.
+
+#### `POST /functions/v1/payments-webhook?env=sandbox|live`
+
+Paddle → Splat webhook. Verifies the `paddle-signature` header against `PAYMENTS_{SANDBOX,LIVE}_WEBHOOK_SECRET` and upserts into `subscriptions` using the `service_role` key.
+
+- **Auth:** signature verification only — **do not** send a Supabase JWT.
+- **Handled events:** `subscription.created`, `subscription.updated`, `subscription.canceled`. Unknown events are logged and acknowledged with `200`.
+- **Response 200:** `{ "received": true }`
+- **Response 400:** `Webhook error` (signature failure or handler exception)
+- **Response 405:** non-`POST` requests
+
+### Error contract
+
+All edge functions return JSON `{ "error": "<generic message>" }` and log the underlying exception via `console.error`. Never surface raw error strings in the UI — use the toast helpers in `src/hooks/use-toast.ts`.
+
 ## Deployment
 
 Splat is designed to be deployed via Lovable:
