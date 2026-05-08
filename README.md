@@ -29,9 +29,10 @@
 12. [Design system](#design-system)
 13. [Testing](#testing)
 14. [Security](#security)
-15. [Deployment](#deployment)
-16. [Contributing](#contributing)
-17. [License](#license)
+15. [API reference](#api-reference)
+16. [Deployment](#deployment)
+17. [Contributing](#contributing)
+18. [License](#license)
 
 ---
 
