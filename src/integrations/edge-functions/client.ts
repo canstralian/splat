@@ -1,34 +1,68 @@
 /**
  * Type-safe wrapper around `supabase.functions.invoke` for Splat edge functions.
  *
- * The signatures are derived from the OpenAPI spec in README.md and the
- * shared types in `./types.ts`. Prefer this helper over calling
- * `supabase.functions.invoke` directly so requests stay in lockstep with
- * the documented contract.
+ * Validates both request and response payloads against Zod schemas derived
+ * from the OpenAPI spec in README.md before returning to the caller, so the
+ * UI never updates state from a malformed edge function response.
  */
 import { supabase } from "@/integrations/supabase/client";
-import type {
-  EdgeFunctionContract,
-  EdgeFunctionName,
-} from "./types";
+import { z } from "zod";
+import type { EdgeFunctionContract, EdgeFunctionName } from "./types";
+import { edgeFunctionSchemas, errorResponseSchema } from "./schemas";
 
 export class EdgeFunctionError extends Error {
-  constructor(public readonly functionName: EdgeFunctionName, message: string) {
+  constructor(
+    public readonly functionName: EdgeFunctionName,
+    message: string,
+    public readonly cause?: unknown,
+  ) {
     super(message);
     this.name = "EdgeFunctionError";
   }
+}
+
+function formatZodError(error: z.ZodError): string {
+  return error.issues
+    .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+    .join("; ");
 }
 
 export async function invokeEdgeFunction<K extends EdgeFunctionName>(
   name: K,
   body: EdgeFunctionContract[K]["request"],
 ): Promise<EdgeFunctionContract[K]["response"]> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { request: requestSchema, response: responseSchema } = edgeFunctionSchemas[name];
+
+  // 1. Validate the outgoing payload so we never send malformed data.
+  const parsedBody = requestSchema.safeParse(body);
+  if (!parsedBody.success) {
+    throw new EdgeFunctionError(
+      name,
+      `Invalid request payload: ${formatZodError(parsedBody.error)}`,
+      parsedBody.error,
+    );
+  }
+
+  const { data, error } = await supabase.functions.invoke(name, { body: parsedBody.data });
   if (error) {
-    throw new EdgeFunctionError(name, error.message ?? "Edge function call failed");
+    throw new EdgeFunctionError(name, error.message ?? "Edge function call failed", error);
   }
-  if (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string") {
-    throw new EdgeFunctionError(name, (data as { error: string }).error);
+
+  // 2. If the function returned an error envelope, surface it.
+  const errorEnvelope = errorResponseSchema.safeParse(data);
+  if (errorEnvelope.success) {
+    throw new EdgeFunctionError(name, errorEnvelope.data.error);
   }
-  return data as EdgeFunctionContract[K]["response"];
+
+  // 3. Validate the response shape before returning to the UI.
+  const parsedResponse = responseSchema.safeParse(data);
+  if (!parsedResponse.success) {
+    throw new EdgeFunctionError(
+      name,
+      `Invalid response payload: ${formatZodError(parsedResponse.error)}`,
+      parsedResponse.error,
+    );
+  }
+
+  return parsedResponse.data as EdgeFunctionContract[K]["response"];
 }
