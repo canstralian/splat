@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/integrations/edge-functions/client";
+import type { PaddleEnvironment } from "@/integrations/edge-functions/types";
 
 const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
 
@@ -8,7 +9,7 @@ declare global {
   }
 }
 
-export function getPaddleEnvironment(): "sandbox" | "live" {
+export function getPaddleEnvironment(): PaddleEnvironment {
   return clientToken?.startsWith("test_") ? "sandbox" : "live";
 }
 
@@ -38,10 +39,8 @@ export async function initializePaddle() {
 
 export async function getPaddlePriceId(priceId: string): Promise<string> {
   const environment = getPaddleEnvironment();
-  const { data, error } = await supabase.functions.invoke("get-paddle-price", {
-    body: { priceId, environment },
-  });
-  if (error || !data?.paddleId) throw new Error(`Failed to resolve price: ${priceId}`);
+  const data = await invokeEdgeFunction("get-paddle-price", { priceId, environment });
+  if (!data?.paddleId) throw new Error(`Failed to resolve price: ${priceId}`);
   return data.paddleId;
 }
 

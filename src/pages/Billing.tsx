@@ -8,7 +8,8 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/integrations/edge-functions/client";
+import type { UpdateSubscriptionRequest } from "@/integrations/edge-functions/types";
 import { toast } from "sonner";
 import { Check, ArrowLeft } from "lucide-react";
 
@@ -37,13 +38,18 @@ export default function Billing() {
     });
   };
 
-  const callAction = async (body: Record<string, unknown>, successMsg: string) => {
+  type ActionPayload =
+    | { action: "cancel" }
+    | { action: "resume" }
+    | { action: "change_plan"; newPriceId: string };
+
+  const callAction = async (payload: ActionPayload, successMsg: string) => {
     setBusy(true);
     try {
-      const { error } = await supabase.functions.invoke("update-subscription", {
-        body: { ...body, environment: getPaddleEnvironment() },
-      });
-      if (error) throw error;
+      await invokeEdgeFunction("update-subscription", {
+        ...payload,
+        environment: getPaddleEnvironment(),
+      } as UpdateSubscriptionRequest);
       toast.success(successMsg);
       setTimeout(refetch, 1500);
     } catch (e) {
