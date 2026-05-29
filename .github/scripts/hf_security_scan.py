@@ -29,7 +29,7 @@ NOTION_TOKEN      = os.environ.get("NOTION_TOKEN")
 NOTION_PARENT_ID  = os.environ.get("NOTION_PARENT_PAGE_ID")
 ANTHROPIC_KEY     = os.environ.get("ANTHROPIC_API_KEY")
 SENDGRID_KEY      = os.environ.get("SENDGRID_API_KEY")
-RECIPIENT_EMAIL   = os.environ.get("GMAIL_RECIPIENT", "dejager.sa@gmail.com")
+RECIPIENT_EMAIL   = os.environ.get("GMAIL_RECIPIENT")
 SENDER_EMAIL      = os.environ.get("SENDER_EMAIL", "noreply-hf-intel@yourdomain.com")
 
 SCAN_QUERIES = [
