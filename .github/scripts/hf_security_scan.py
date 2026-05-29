@@ -85,7 +85,7 @@ def classify(repo) -> str:
 
 def search_hf(since_hours: int = 2) -> list[dict]:
     api = HfApi(token=HF_TOKEN)
-    cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=since_hours)
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=since_hours)
     found = {}
 
     for query in SCAN_QUERIES:
