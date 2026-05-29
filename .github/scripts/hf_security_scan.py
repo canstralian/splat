@@ -137,7 +137,7 @@ def synthesize_digest(repos: list[dict], run_number: int) -> str:
         return _fallback_digest(repos, run_number)
 
     payload = {
-        "model": "claude-sonnet-4-6",
+        "model": "claude-3-5-sonnet-latest",
         "max_tokens": 4096,
         "messages": [{
             "role": "user",
