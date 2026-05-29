@@ -106,7 +106,9 @@ def search_hf(since_hours: int = 2) -> list[dict]:
                     if last_mod is None:
                         continue
                     if isinstance(last_mod, str):
-                        last_mod = datetime.datetime.fromisoformat(last_mod.replace("Z", "+00:00")).replace(tzinfo=None)
+                        last_mod = datetime.datetime.fromisoformat(last_mod.replace("Z", "+00:00"))
+                    if last_mod.tzinfo is None:
+                        last_mod = last_mod.replace(tzinfo=datetime.timezone.utc)
                     if last_mod < cutoff:
                         continue
                     key = f"{repo_type}/{repo.id}"
