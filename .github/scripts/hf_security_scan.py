@@ -62,10 +62,10 @@ DEFENSIVE_KEYWORDS = [
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def utcnow() -> str:
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def today() -> str:
-    return datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 
 def classify(repo) -> str:
     combined = " ".join([
