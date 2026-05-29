@@ -213,9 +213,11 @@ def get_run_number() -> int:
         results = resp.json().get("results", [])
         titles = []
         for r in results:
-            title_parts = r.get("properties", {}).get("title", {}).get("title", [])
-            for t in title_parts:
-                titles.append(t.get("plain_text", ""))
+            title_prop = r.get("properties", {}).get("title")
+            if isinstance(title_prop, dict):
+                title_parts = title_prop.get("title", [])
+                for t in title_parts:
+                    titles.append(t.get("plain_text", ""))
         run_numbers = []
         for t in titles:
             m = re.search(r"Run #(\d+)", t)
