@@ -272,8 +272,8 @@ def save_to_notion(digest_md: str, run_number: int, repo_count: int) -> str | No
 # ── Email delivery ────────────────────────────────────────────────────────────
 
 def send_email(subject: str, html_body: str) -> None:
-    if not SENDGRID_KEY:
-        print("No SENDGRID_API_KEY — skipping email", file=sys.stderr)
+    if not SENDGRID_KEY or not RECIPIENT_EMAIL:
+        print("No SENDGRID_API_KEY or GMAIL_RECIPIENT — skipping email", file=sys.stderr)
         return
     payload = {
         "personalizations": [{"to": [{"email": RECIPIENT_EMAIL}]}],
