@@ -225,8 +225,8 @@ def get_run_number() -> int:
     return 1
 
 def save_to_notion(digest_md: str, run_number: int, repo_count: int) -> str | None:
-    if not NOTION_TOKEN:
-        print("No NOTION_TOKEN — skipping Notion save", file=sys.stderr)
+    if not NOTION_TOKEN or not NOTION_PARENT_ID:
+        print("No NOTION_TOKEN or NOTION_PARENT_PAGE_ID — skipping Notion save", file=sys.stderr)
         return None
 
     headers = {
