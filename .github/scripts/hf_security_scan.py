@@ -281,16 +281,19 @@ def send_email(subject: str, html_body: str) -> None:
         "subject": subject,
         "content": [{"type": "text/html", "value": html_body}],
     }
-    resp = requests.post(
-        "https://api.sendgrid.com/v3/mail/send",
-        headers={"Authorization": f"Bearer {SENDGRID_KEY}", "Content-Type": "application/json"},
-        json=payload,
-        timeout=15,
-    )
-    if resp.status_code in (200, 202):
-        print(f"Email sent to {RECIPIENT_EMAIL}")
-    else:
-        print(f"SendGrid error {resp.status_code}: {resp.text}", file=sys.stderr)
+    try:
+        resp = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": f"Bearer {SENDGRID_KEY}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=15,
+        )
+        if resp.status_code in (200, 202):
+            print(f"Email sent to {RECIPIENT_EMAIL}")
+        else:
+            print(f"SendGrid error {resp.status_code}: {resp.text}", file=sys.stderr)
+    except Exception as e:
+        print(f"Failed to send email via SendGrid: {e}", file=sys.stderr)
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
