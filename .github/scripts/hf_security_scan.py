@@ -251,7 +251,7 @@ def save_to_notion(digest_md: str, run_number: int, repo_count: int) -> str | No
         for chunk in chunks
     ]
 
-    parent = {"type": "page_id", "page_id": NOTION_PARENT_ID} if NOTION_PARENT_ID else {"type": "workspace"}
+    parent = {"type": "page_id", "page_id": NOTION_PARENT_ID}
     body = {
         "parent": parent,
         "properties": {
