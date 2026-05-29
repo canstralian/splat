@@ -1,0 +1,85 @@
+name: HF Security Intelligence Scanner
+
+on:
+  schedule:
+    # Run every hour at minute 5
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      full_scan:
+        description: "Run a full 24h scan regardless of last state"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write  # needed to commit state file updates
+
+jobs:
+  scan:
+    name: Scan Hugging Face Hub
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore scanner state
+        uses: actions/cache@v4
+        with:
+          path: scripts/scanner_state.json
+          key: scanner-state-${{ github.run_id }}
+          restore-keys: |
+            scanner-state-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements_scanner.txt
+
+      - name: Reset state for full scan
+        if: github.event.inputs.full_scan == 'true'
+        run: rm -f scripts/scanner_state.json
+
+      - name: Run security scanner
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          DIGEST_OUTPUT: /tmp/hf_security_digest.md
+        run: python scripts/hf_security_scanner.py
+
+      - name: Save scanner state
+        uses: actions/cache@v4
+        with:
+          path: scripts/scanner_state.json
+          key: scanner-state-${{ github.run_id }}
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-digest-${{ github.run_id }}
+          path: /tmp/hf_security_digest.md
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          echo "## HF Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/hf_security_digest.md ]; then
+            head -30 /tmp/hf_security_digest.md >> $GITHUB_STEP_SUMMARY
+          fi
