@@ -1,0 +1,80 @@
+name: HF Security Intelligence Scan
+
+# ── Triggers ───────────────────────────────────────────────────────────────────
+on:
+  schedule:
+    - cron: "0 * * * *"   # Every hour at :00 UTC
+  workflow_dispatch:        # Manual on-demand trigger (testing / backfill)
+    inputs:
+      scan_window_hours:
+        description: "Hours to look back for recently modified repos (default: 2)"
+        required: false
+        default: "2"
+
+# ── Permissions ────────────────────────────────────────────────────────────────
+permissions:
+  contents: read
+
+# ── Jobs ───────────────────────────────────────────────────────────────────────
+jobs:
+  scan:
+    name: "Scan HF Hub — Run #${{ github.run_number }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python ────────────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # ── 3. Dependencies ──────────────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install --quiet requests anthropic
+
+      # ── 4. Run scanner ───────────────────────────────────────────────────────
+      - name: Run HF security scanner
+        env:
+          # Anthropic — Claude classification
+          # Get your key at: https://console.anthropic.com
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Notion — digest storage
+          # 1. Create an integration at https://www.notion.so/my-integrations
+          # 2. Copy the integration token -> NOTION_TOKEN
+          # 3. Share a Notion page with the integration, copy its ID -> NOTION_PAGE_ID
+          #    (optional: leave blank to save at workspace root)
+          NOTION_TOKEN:    ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID:  ${{ secrets.NOTION_PAGE_ID }}
+
+          # Gmail SMTP — digest delivery
+          # 1. Enable 2-factor auth on your Google account
+          # 2. Generate an App Password at https://myaccount.google.com/apppasswords
+          # 3. SMTP_USER = your Gmail address, SMTP_PASSWORD = the 16-char app password
+          SMTP_USER:           ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:       ${{ secrets.SMTP_PASSWORD }}
+          NOTIFICATION_EMAIL:  ${{ secrets.NOTIFICATION_EMAIL }}
+
+          # Scan parameters
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          SCAN_WINDOW_HOURS: ${{ github.event.inputs.scan_window_hours || '2' }}
+
+        run: python scripts/hf_security_scan.py
+
+# ── Secret setup guide ─────────────────────────────────────────────────────────
+# Navigate to: Settings -> Secrets and variables -> Actions -> New repository secret
+#
+# Secret name          Value
+# ───────────────────  ──────────────────────────────────────────────────────────
+# ANTHROPIC_API_KEY    sk-ant-...  (from console.anthropic.com)
+# NOTION_TOKEN         secret_...  (from notion.so/my-integrations)
+# NOTION_PAGE_ID       (optional) 32-char page ID from the Notion page URL
+# SMTP_USER            you@gmail.com
+# SMTP_PASSWORD        xxxx xxxx xxxx xxxx  (16-char Gmail App Password)
+# NOTIFICATION_EMAIL   dejager.sa@gmail.com
