@@ -1,0 +1,57 @@
+name: HF Security Intelligence Scan
+
+on:
+  schedule:
+    # Runs every hour at minute 0
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_baseline:
+        description: "Reset last-scan timestamp (re-scan all recent repos)"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: write   # needed to commit .scan_state.json back to the branch
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN:        ${{ secrets.HF_TOKEN }}
+      NOTION_TOKEN:    ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID:    ${{ secrets.NOTION_DB_ID }}
+      GMAIL_TO:        ${{ secrets.GMAIL_TO }}
+      GMAIL_USER:      ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+      SCAN_STATE_FILE: .scan_state.json
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: claude/wizardly-archimedes-Heklw
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Reset baseline (manual trigger only)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_baseline == 'true' }}
+        run: rm -f .scan_state.json
+
+      - name: Run security scan
+        run: python scripts/hf_security_scan.py
+
+      - name: Commit updated scan state
+        run: |
+          git config user.name  "hf-secbot[bot]"
+          git config user.email "hf-secbot@users.noreply.github.com"
+          git add .scan_state.json
+          git diff --cached --quiet || git commit -m "chore: update scan state [skip ci]"
+          git push origin claude/wizardly-archimedes-Heklw
