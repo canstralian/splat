@@ -49,6 +49,12 @@ RUN_NUMBER_FILE = "/tmp/hf_scan_run_number.txt"
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def get_run_number() -> int:
+    gha_run = os.environ.get("GITHUB_RUN_NUMBER")
+    if gha_run:
+        try:
+            return int(gha_run)
+        except ValueError:
+            pass
     try:
         with open(RUN_NUMBER_FILE) as f:
             return int(f.read().strip()) + 1
