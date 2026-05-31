@@ -21,7 +21,7 @@ NOTION_TOKEN  = os.environ.get("NOTION_TOKEN", "")
 NOTION_PAGE_ID = os.environ.get("NOTION_PARENT_PAGE_ID", "")  # parent page for reports
 GMAIL_USER    = os.environ.get("GMAIL_USER", "")
 GMAIL_APP_PASS = os.environ.get("GMAIL_APP_PASSWORD", "")
-RECIPIENT     = os.environ.get("REPORT_RECIPIENT", "dejager.sa@gmail.com")
+RECIPIENT     = os.environ.get("REPORT_RECIPIENT", "")
 HF_TOKEN      = os.environ.get("HF_TOKEN", "")
 
 # Tags to sweep (single-word queries that HF search handles well)
