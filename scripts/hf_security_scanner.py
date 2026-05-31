@@ -228,8 +228,8 @@ def rows_md(items: list) -> str:
 
 
 def post_to_notion(digest: dict):
-    if not NOTION_TOKEN:
-        print("[skip] NOTION_TOKEN not set", file=sys.stderr)
+    if not NOTION_TOKEN or not NOTION_PAGE_ID:
+        print("[skip] NOTION_TOKEN or NOTION_PARENT_PAGE_ID not set", file=sys.stderr)
         return
 
     content = f"""## Scan Metadata
