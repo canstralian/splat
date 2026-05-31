@@ -107,7 +107,8 @@ def is_recent(repo: dict, hours: int) -> bool:
 def classify(repo: dict) -> str:
     blob = json.dumps(repo).lower()
     name = (repo.get("id") or repo.get("modelId") or "").lower()
-    tags = " ".join(repo.get("tags") or []).lower()
+    tags_val = repo.get("tags")
+    tags = " ".join(str(t) for t in tags_val if t is not None).lower() if isinstance(tags_val, list) else ""
     desc = (repo.get("cardData", {}) or {}).get("description", "") if isinstance(repo.get("cardData"), dict) else ""
     combined = f"{name} {tags} {desc} {blob[:400]}"
 
@@ -143,6 +144,8 @@ def scan() -> list:
     for query in SECURITY_QUERIES:
         for rt in REPO_TYPES:
             repos = hf_search(query, rt, sort="lastModified", limit=30)
+            if not isinstance(repos, list):
+                continue
             for r in repos:
                 rid = r.get("id") or r.get("modelId") or r.get("name") or ""
                 if not rid or rid in seen_ids:
@@ -220,19 +223,18 @@ def _strip_inline_md(text: str) -> str:
     return text
 
 
-def _notion_text_chunks(block_type: str, text: str) -> list:
-    """Return one or more Notion block dicts, splitting text into <=2000-char chunks."""
-    blocks = []
-    # Ensure we emit at least one block even for empty text
+def _notion_block(block_type: str, text: str) -> dict:
+    """Return a single Notion block dict with multiple rich_text elements (<=2000 chars each)."""
     text = text or " "
-    for i in range(0, len(text), 2000):
-        chunk = text[i : i + 2000]
-        blocks.append({
-            "object": "block",
-            "type": block_type,
-            block_type: {"rich_text": [{"type": "text", "text": {"content": chunk}}]},
-        })
-    return blocks
+    rich_text = [
+        {"type": "text", "text": {"content": text[i : i + 2000]}}
+        for i in range(0, len(text), 2000)
+    ]
+    return {
+        "object": "block",
+        "type": block_type,
+        block_type: {"rich_text": rich_text},
+    }
 
 
 def markdown_to_notion_blocks(md: str) -> list:
@@ -243,33 +245,27 @@ def markdown_to_notion_blocks(md: str) -> list:
     capped at 2000 characters as required by the Notion API.
     """
     blocks = []
-    for line in md.split("\n"):
+    for raw_line in md.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
         if line.startswith("## "):
-            text = line[3:].strip()[:2000]
-            blocks.append({
-                "object": "block", "type": "heading_2",
-                "heading_2": {"rich_text": [{"type": "text", "text": {"content": text}}]},
-            })
+            blocks.append(_notion_block("heading_2", line[3:].strip()))
         elif line.startswith("### "):
-            text = line[4:].strip()[:2000]
-            blocks.append({
-                "object": "block", "type": "heading_3",
-                "heading_3": {"rich_text": [{"type": "text", "text": {"content": text}}]},
-            })
-        elif re.match(r"^-{3,}$", line.strip()):
+            blocks.append(_notion_block("heading_3", line[4:].strip()))
+        elif re.match(r"^-{3,}$", line):
             blocks.append({"object": "block", "type": "divider", "divider": {}})
-        elif re.match(r"^\|[\s\-|]+\|$", line.strip()):
+        elif re.match(r"^\|[\s\-|]+\|$", line):
             # Table separator row — skip
             continue
         elif line.startswith("|") and line.endswith("|"):
             # Table data row → plain paragraph
             cells = [c.strip() for c in line.strip("|").split("|")]
-            blocks.extend(_notion_text_chunks("paragraph", " | ".join(cells)))
+            blocks.append(_notion_block("paragraph", " | ".join(cells)))
         elif line.startswith("- "):
-            blocks.extend(_notion_text_chunks("bulleted_list_item", _strip_inline_md(line[2:])))
-        elif line.strip():
-            blocks.extend(_notion_text_chunks("paragraph", _strip_inline_md(line.strip())))
-        # Empty lines produce no block; Notion handles its own spacing
+            blocks.append(_notion_block("bulleted_list_item", _strip_inline_md(line[2:])))
+        else:
+            blocks.append(_notion_block("paragraph", _strip_inline_md(line)))
     return blocks
 
 
@@ -285,6 +281,7 @@ def _notion_append_blocks(page_id: str, blocks: list, headers: dict):
         )
         if not r.ok:
             print(f"[notion] Append error {r.status_code}: {r.text[:300]}", file=sys.stderr)
+            return
 
 
 def post_to_notion(digest: dict):
