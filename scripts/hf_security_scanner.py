@@ -366,7 +366,7 @@ def send_email(digest: dict):
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(GMAIL_USER, GMAIL_APP_PASS)
             server.sendmail(GMAIL_USER, RECIPIENT, msg.as_string())
         print(f"[email] Sent to {RECIPIENT}")
