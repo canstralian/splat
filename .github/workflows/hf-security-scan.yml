@@ -1,0 +1,56 @@
+name: HF Security Intelligence Scan
+
+on:
+  schedule:
+    # Every hour at minute 0
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: "Hours of history to scan (default: 1)"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan HuggingFace for security repos
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run security scan
+        env:
+          HF_TOKEN:               ${{ secrets.HF_TOKEN }}
+          NOTION_TOKEN:           ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID:  ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          GMAIL_USER:             ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS:         ${{ secrets.GMAIL_APP_PASS }}
+          DIGEST_EMAIL:           ${{ secrets.DIGEST_EMAIL }}
+          SCAN_LOOKBACK_HOURS:    ${{ github.event.inputs.lookback_hours || '1' }}
+          # Persist state across runs via the runner's temp directory.
+          # For durable cross-run state, mount a cache or artifact instead.
+          STATE_FILE:             /tmp/hf_scan_state.json
+        run: python scripts/hf_security_scan.py
+
+      # Cache the state file so consecutive runs only report new repos.
+      - name: Cache scan state
+        uses: actions/cache@v4
+        with:
+          path: /tmp/hf_scan_state.json
+          key: hf-scan-state-${{ github.run_id }}
+          restore-keys: |
+            hf-scan-state-
