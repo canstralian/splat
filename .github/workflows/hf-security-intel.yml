@@ -1,0 +1,40 @@
+name: HF Security Intelligence Scanner
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # every hour on the hour
+  workflow_dispatch:        # manual trigger for testing
+    inputs:
+      lookback_minutes:
+        description: "Minutes to look back (default 65)"
+        required: false
+        default: "65"
+
+jobs:
+  scan:
+    name: Scan HF for security repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install --quiet huggingface_hub requests
+
+      - name: Run security scanner
+        env:
+          NOTION_TOKEN:        ${{ secrets.NOTION_TOKEN }}
+          GMAIL_USER:          ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL:     ${{ secrets.RECIPIENT_EMAIL }}
+          HF_TOKEN:            ${{ secrets.HF_TOKEN }}
+          LOOKBACK_MINUTES:    ${{ github.event.inputs.lookback_minutes || '65' }}
+        run: python scripts/hf_security_scanner.py
