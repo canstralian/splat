@@ -5,6 +5,7 @@ Runs hourly via GitHub Actions to scan for new/updated security-related
 repositories across Models, Datasets, and Spaces.
 """
 
+import html
 import os
 import json
 import re
@@ -43,7 +44,10 @@ DUAL_USE_KW   = ["red-team", "offensive-security", "pentest", "exploit", "bypass
 DEFENSIVE_KW  = ["detection", "defensive", "soc", "dfir", "cti", "threat-intel",
                  "incident-response", "yara", "sigma", "classifier", "dataset"]
 
-HOURS_LOOKBACK = 1  # only surface repos modified in the last N hours
+try:
+    HOURS_LOOKBACK = max(1, int(os.environ.get("HOURS_LOOKBACK", "1")))
+except (ValueError, TypeError):
+    HOURS_LOOKBACK = 1
 RUN_NUMBER_FILE = "/tmp/hf_scan_run_number.txt"
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -618,10 +622,10 @@ def send_email(digest: dict):
                 return f"<p><b>{label}:</b> None this cycle.</p>"
             rows = "".join(
                 f"<tr><td>{risk_emoji(f['classification'])}</td>"
-                f"<td><a href='{f['url']}'>{f['id']}</a></td>"
-                f"<td>{f['type']}</td>"
-                f"<td>{f['classification']}</td>"
-                f"<td>{f.get('downloads',0)}</td></tr>"
+                f"<td><a href='{html.escape(f['url'])}'>{html.escape(f['id'])}</a></td>"
+                f"<td>{html.escape(f['type'])}</td>"
+                f"<td>{html.escape(f['classification'])}</td>"
+                f"<td>{f.get('downloads', 0)}</td></tr>"
                 for f in items
             )
             return (

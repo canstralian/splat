@@ -22,10 +22,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # TODO: pin to full commit SHA for supply-chain security
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5  # TODO: pin to full commit SHA for supply-chain security
         with:
           python-version: "3.12"
 
@@ -42,4 +44,6 @@ jobs:
           REPORT_RECIPIENT:      ${{ secrets.REPORT_RECIPIENT }}
           # ── Optional: higher HF API rate limits ──
           HF_TOKEN:              ${{ secrets.HF_TOKEN }}
+          # ── Scan configuration ──
+          HOURS_LOOKBACK:        ${{ inputs.hours_lookback || '1' }}
         run: python scripts/hf_security_scanner.py
