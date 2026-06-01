@@ -599,7 +599,7 @@ def send_email(digest: dict):
             "No new or updated security repositories detected this cycle.\n\n"
             "Low-noise run — no action required."
         )
-        html = f"<p>{plain}</p>"
+        html_body = f"<p>{plain}</p>"
     else:
         def section(items, label):
             """
@@ -635,7 +635,7 @@ def send_email(digest: dict):
                 f"{rows}</table>"
             )
 
-        html = f"""<html><body style='font-family:Arial,sans-serif;max-width:900px'>
+        html_body = f"""<html><body style='font-family:Arial,sans-serif;max-width:900px'>
 <h2 style='background:#0f172a;color:#f8fafc;padding:12px 16px;border-radius:6px'>{subject}</h2>
 <p>{digest['exec_summary']}</p>
 {section(digest['tier1'], '🔴🟠 Tier 1 — Suspicious')}
@@ -650,7 +650,7 @@ def send_email(digest: dict):
     msg["From"]    = GMAIL_USER
     msg["To"]      = RECIPIENT
     msg.attach(MIMEText(plain, "plain"))
-    msg.attach(MIMEText(html, "html"))
+    msg.attach(MIMEText(html_body, "html"))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
