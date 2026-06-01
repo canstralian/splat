@@ -1,0 +1,4 @@
+huggingface_hub>=0.27.0
+requests>=2.32.0
+python-dateutil>=2.9.0
+notion-client>=2.3.0

@@ -1,0 +1,62 @@
+name: HF Security Intelligence Scan
+
+on:
+  schedule:
+    # Run every hour at :05 past the hour
+    - cron: '5 * * * *'
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: 'Hours to look back for new/updated repos'
+        required: false
+        default: '2'
+
+jobs:
+  scan:
+    name: Scan HuggingFace Security Repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r scripts/hf_intel/requirements.txt
+
+      - name: Run HF security scan
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '2' }}
+          STATE_FILE: /tmp/hf_scan_state.json
+        run: python scripts/hf_intel/scanner.py
+
+      - name: Upload scan state artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scan-state-${{ github.run_number }}
+          path: /tmp/hf_scan_state.json
+          retention-days: 7
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: digest-${{ github.run_number }}
+          path: /tmp/hf_digest_*.md
+          retention-days: 30
+          if-no-files-found: ignore
