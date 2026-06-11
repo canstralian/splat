@@ -332,7 +332,7 @@ def send_email(findings: list, run_n: str, scan_date: str, notion_url: str):
     msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as server:
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, GMAIL_TO, msg.as_string())
         print(f"[OK] Email sent to {GMAIL_TO}")
