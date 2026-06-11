@@ -70,13 +70,20 @@ def repo_id(repo: dict) -> str:
 
 
 def classify(repo: dict) -> str:
-    raw = json.dumps(repo).lower()
-    tags = " ".join(repo.get("tags", []) + [repo.get("id", "")]).lower()
-    if any(k in raw for k in SUSPICIOUS_KEYWORDS):
+    import re
+    # Extract relevant text fields to avoid matching on JSON structural characters or keys
+    tags_list = repo.get("tags") or []
+    description = repo.get("description") or ""
+    text_content = " ".join(tags_list + [repo.get("id", ""), description]).lower()
+    
+    # Tokenize into words (including hyphens for keywords like 'command-and-control')
+    words = set(re.findall(r"[a-z0-9\-]+", text_content))
+    
+    if any(k in words for k in SUSPICIOUS_KEYWORDS):
         return "Suspicious"
-    if any(k in tags for k in DUALUSE_KEYWORDS):
+    if any(k in words for k in DUALUSE_KEYWORDS):
         return "Dual-use"
-    if any(k in tags for k in CLASSIFY_DEFENSIVE):
+    if any(k in words for k in CLASSIFY_DEFENSIVE):
         return "Defensive"
     return "Research/Educational"
 
