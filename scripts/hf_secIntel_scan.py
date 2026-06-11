@@ -157,7 +157,7 @@ def run_scan(lookback_hours: int = 1) -> list:
                     "author": repo.get("author", rid.split("/")[0] if "/" in rid else ""),
                     "created": repo.get("createdAt", ""),
                     "modified": repo.get("lastModified", ""),
-                    "tags": repo.get("tags", [])[:10],
+                    "tags": (repo.get("tags") or [])[:10],
                     "downloads": repo.get("downloads", 0),
                     "likes": repo.get("likes", 0),
                     "classification": classification,
