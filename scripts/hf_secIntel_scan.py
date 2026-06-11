@@ -19,7 +19,7 @@ from email.mime.multipart import MIMEMultipart
 HF_TOKEN        = os.getenv("HF_TOKEN", "")
 NOTION_TOKEN    = os.getenv("NOTION_API_KEY", "")
 NOTION_PAGE_ID  = os.getenv("NOTION_PARENT_PAGE_ID", "")  # parent page/DB
-GMAIL_TO        = os.getenv("GMAIL_RECIPIENT", "dejager.sa@gmail.com")
+GMAIL_TO        = os.getenv("GMAIL_RECIPIENT", "")
 SMTP_USER       = os.getenv("SMTP_USER", "")   # Gmail address
 SMTP_PASS       = os.getenv("SMTP_APP_PASSWORD", "")  # Gmail app password
 RUN_NUMBER      = os.getenv("GITHUB_RUN_NUMBER", "?")
