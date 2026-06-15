@@ -102,12 +102,13 @@ def search_hf(api: HfApi) -> dict[str, dict]:
 
                 for repo in results:
                     repo_id = repo.id
-                    if repo_id in found:
-                        found[repo_id]["matched_terms"].add(term)
+                    key = f"{rtype}/{repo_id}"
+                    if key in found:
+                        found[key]["matched_terms"].add(term)
                         continue
 
                     tags = list(getattr(repo, "tags", []) or [])
-                    found[repo_id] = {
+                    found[key] = {
                         "id": repo_id,
                         "type": rtype,
                         "author": repo.author or repo_id.split("/")[0],
