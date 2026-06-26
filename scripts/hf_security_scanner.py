@@ -469,7 +469,7 @@ def send_email(digest: dict, notion_url: str | None) -> None:
     msg.attach(MIMEText(build_email_html(digest, notion_url), "html"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as smtp:
             smtp.login(sender, password)
             smtp.sendmail(sender, recipient, msg.as_string())
         print("[INFO] Email sent.")
