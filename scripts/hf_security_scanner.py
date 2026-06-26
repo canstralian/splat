@@ -148,12 +148,15 @@ def save_state(state: dict) -> None:
 
 def classify(repo: dict) -> tuple[str, str]:
     """Returns (classification_label, risk_level)."""
+    import re
     tag_set = {t.lower() for t in repo["tags"]}
     tag_set.update(t.lower() for t in repo["matched_terms"])
     name_lower = repo["id"].lower()
 
-    suspicious = bool(tag_set & SUSPICIOUS_SIGNALS or
-                      any(s in name_lower for s in SUSPICIOUS_SIGNALS))
+    suspicious = bool(
+        tag_set & SUSPICIOUS_SIGNALS or
+        any(re.search(rf"\b{re.escape(s)}\b", name_lower) for s in SUSPICIOUS_SIGNALS)
+    )
     defensive = bool(tag_set & DEFENSIVE_SIGNALS)
     educational = bool(tag_set & EDUCATIONAL_SIGNALS)
     research = bool(tag_set & RESEARCH_SIGNALS)
