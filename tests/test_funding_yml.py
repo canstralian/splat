@@ -36,7 +36,7 @@ class TestFundingYml(unittest.TestCase):
 
     def _load_funding(self) -> dict:
         """Helper to load and return parsed FUNDING.yml content."""
-        with open(self.funding_file, "r") as f:
+        with open(self.funding_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         self.assertIsInstance(
             data, dict, "FUNDING.yml top-level structure should be a YAML mapping"
@@ -50,7 +50,7 @@ class TestFundingYml(unittest.TestCase):
         )
 
     def test_file_is_valid_yaml(self) -> None:
-        with open(self.funding_file, "r") as f:
+        with open(self.funding_file, "r", encoding="utf-8") as f:
             try:
                 yaml.safe_load(f)
             except yaml.YAMLError as exc:
