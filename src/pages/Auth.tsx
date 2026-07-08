@@ -86,7 +86,7 @@ export default function Auth() {
       <div className="w-full max-w-[420px] border border-border rounded-md p-8 space-y-6">
         {/* Logo */}
         <div className="flex flex-col items-start gap-3">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link to="/" aria-label="Splat home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <StackedLogo size={16} />
             <span className="text-[14px] font-bold text-foreground tracking-[0.08em] uppercase">Splat</span>
           </Link>
