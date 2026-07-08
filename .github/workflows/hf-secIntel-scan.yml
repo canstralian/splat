@@ -1,0 +1,63 @@
+name: HF Security Intelligence Scanner
+
+on:
+  schedule:
+    # Every hour at :05 past the hour (UTC)
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: "Hours to look back for new/modified repos"
+        required: false
+        default: "1"
+
+jobs:
+  scan:
+    name: Scan HF for security repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Restore seen-IDs state cache ──────────────────────────────────────
+      - name: Restore scan state
+        uses: actions/cache@v4
+        with:
+          path: /tmp/hf_secIntel_seen.json
+          key: hf-secIntel-state-${{ github.run_number }}
+          restore-keys: |
+            hf-secIntel-state-
+
+      # ── Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      # ── Run scanner ───────────────────────────────────────────────────────
+      - name: Run HF SecIntel scan
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
+          GMAIL_RECIPIENT: ${{ secrets.GMAIL_RECIPIENT }}
+          LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '1' }}
+          STATE_FILE: /tmp/hf_secIntel_seen.json
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          SKIP_EMPTY: "true"
+        run: python scripts/hf_secIntel_scan.py
+
+      # ── Save updated state ────────────────────────────────────────────────
+      - name: Save scan state
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: /tmp/hf_secIntel_seen.json
+          key: hf-secIntel-state-${{ github.run_number }}

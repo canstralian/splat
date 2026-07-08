@@ -1,0 +1,14 @@
+# Splat
+
+> Splat is a lightweight, keyboard-first bug tracker built for indie developers and small studios. Crush bugs faster. Ship more.
+
+Splat helps small teams capture, triage, and resolve software defects with minimal ceremony. It offers a Kanban and table dashboard, real-time updates, severity and category taxonomies, analytics, and a clean dark-mode interface inspired by Linear.
+
+## Pages
+
+- [Home](/): Product overview, features, and pricing for Splat.
+- [Sign in / Sign up](/auth): Email/password or Google authentication to access the app.
+
+## Optional
+
+- [Sitemap](/sitemap.xml): Machine-readable list of public routes.
