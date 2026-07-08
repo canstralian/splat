@@ -1,0 +1,49 @@
+name: HF Security Intelligence Scanner
+
+on:
+  schedule:
+    # Every hour at :05 past (avoids stampede at :00)
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      hours_lookback:
+        description: "Hours of history to scan (default: 1)"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan Hugging Face for security repos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4  # TODO: pin to full commit SHA for supply-chain security
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5  # TODO: pin to full commit SHA for supply-chain security
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run scanner
+        env:
+          # ── Required secrets (set in repo Settings → Secrets → Actions) ──
+          NOTION_TOKEN:          ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          GMAIL_USER:            ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_RECIPIENT:      ${{ secrets.REPORT_RECIPIENT }}
+          # ── Optional: higher HF API rate limits ──
+          HF_TOKEN:              ${{ secrets.HF_TOKEN }}
+          # ── Scan configuration ──
+          HOURS_LOOKBACK:        ${{ inputs.hours_lookback || '1' }}
+        run: python scripts/hf_security_scanner.py
