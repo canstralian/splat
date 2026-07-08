@@ -1,0 +1,71 @@
+name: HF Security Intelligence Scanner
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour on the hour
+  workflow_dispatch:
+    inputs:
+      force_baseline:
+        description: 'Force a fresh baseline scan (ignore state file)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: hf-security-intel
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  STATE_FILE: '.hf_intel_state.json'
+
+jobs:
+  scan:
+    name: Scan HuggingFace Hub
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r scripts/hf_intel/requirements.txt
+
+      - name: Restore state from cache
+        id: cache-state
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STATE_FILE }}
+          key: hf-intel-state-${{ github.run_number }}
+          restore-keys: |
+            hf-intel-state-
+
+      - name: Run scanner
+        id: scan
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          DIGEST_RECIPIENT: ${{ secrets.DIGEST_RECIPIENT }}
+          FORCE_BASELINE: ${{ github.event.inputs.force_baseline || 'false' }}
+          STATE_FILE: ${{ env.STATE_FILE }}
+        run: |
+          python scripts/hf_intel/scanner.py
+
+      - name: Save state (always)
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ${{ env.STATE_FILE }}
+          key: hf-intel-state-${{ github.run_number }}
