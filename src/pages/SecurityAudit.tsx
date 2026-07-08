@@ -112,6 +112,40 @@ const entries: Entry[] = [
     fix: "Switched to SECURITY INVOKER; added an authenticated SELECT policy on user_roles to preserve intentional team-wide visibility.",
     changes: [{ kind: "migration", path: "supabase/migrations (get_team_members)" }],
   },
+  {
+    id: "user_roles_team_visibility",
+    date: "2026-06-15",
+    title: "user_roles RLS blocked intentional team visibility",
+    severity: "warn",
+    source: "agent_security",
+    summary: "A later hardening migration removed broad role visibility, causing team member and authorization views to see only partial role data.",
+    fix: "Restored authenticated SELECT visibility on user_roles and split admin mutation into explicit INSERT, UPDATE, and DELETE policies with WITH CHECK on writes.",
+    changes: [{ kind: "migration", path: "supabase/migrations/20260615122000_fix_user_roles_rls.sql" }],
+  },
+  {
+    id: "tracked_env_file",
+    date: "2026-06-15",
+    title: "Tracked .env file in public repository",
+    severity: "warn",
+    source: "agent_security",
+    summary: "The repository tracked a Vite environment file containing Supabase project wiring. Even publishable keys should not be maintained in committed local env files.",
+    fix: "Removed the tracked .env file, added .env/.env.* ignore rules, and committed a safe .env.example template.",
+    changes: [
+      { kind: "file", path: ".env" },
+      { kind: "file", path: ".gitignore" },
+      { kind: "file", path: ".env.example" },
+    ],
+  },
+  {
+    id: "team_members_rpc_execute",
+    date: "2026-06-15",
+    title: "Team members RPC missing authenticated EXECUTE grant",
+    severity: "warn",
+    source: "agent_security",
+    summary: "Earlier revokes removed broad EXECUTE access from get_team_members(); after conversion to SECURITY INVOKER, the Settings Team tab still calls that RPC directly.",
+    fix: "Granted EXECUTE on get_team_members() to authenticated so the RPC boundary matches the intended signed-in team view.",
+    changes: [{ kind: "migration", path: "supabase/migrations/20260615123500_grant_team_members_rpc.sql" }],
+  },
 ];
 
 const sourceLabel: Record<Entry["source"], string> = {
