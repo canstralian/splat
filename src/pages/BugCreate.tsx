@@ -49,8 +49,9 @@ export default function BugCreate() {
       if (error) throw error;
       toast({ title: "Bug reported!", description: `Tracking ID: ${data.tracking_id}` });
       navigate("/");
-    } catch (error: any) {
-      (console.error("Failed to create bug", error), toast({ title: "Failed to create bug", description: "Something went wrong. Please try again.", variant: "destructive" }));
+    } catch (error) {
+      console.error("Failed to create bug", error);
+      toast({ title: "Failed to create bug", description: "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

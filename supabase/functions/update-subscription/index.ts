@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         const parsed = JSON.parse(body);
         const sched = parsed.data?.scheduled_change;
         const nextBilledAt = parsed.data?.next_billed_at;
-        const items = parsed.data?.items?.map((i: any) => ({
+        const items = parsed.data?.items?.map((i: Record<string, any>) => ({
           priceId: i.price?.id,
           externalPriceId: i.price?.import_meta?.external_id,
           nextBilledAt: i.next_billed_at,
