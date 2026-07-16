@@ -3,9 +3,18 @@ import type { PaddleEnvironment } from "@/integrations/edge-functions/types";
 
 const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
 
+interface PaddleGlobal {
+  Environment: { set: (env: "sandbox" | "production") => void };
+  Initialize: (opts: { token: string }) => void;
+  Checkout: {
+    open: (opts: Record<string, unknown>) => void;
+    close?: () => void;
+  };
+}
+
 declare global {
   interface Window {
-    Paddle: any;
+    Paddle: PaddleGlobal;
   }
 }
 

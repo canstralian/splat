@@ -40,7 +40,7 @@ export default function Auth() {
         console.error("Google sign-in error:", error);
         toast({ title: "Google sign-in failed", description: "Please try again.", variant: "destructive" });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Google sign-in error:", error);
       toast({ title: "Google sign-in failed", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -54,7 +54,7 @@ export default function Auth() {
     try {
       await signIn(loginEmail, loginPassword);
       toast({ title: "Welcome back!" });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login error:", error);
       toast({ title: "Login failed", description: "Invalid credentials or account issue — please try again.", variant: "destructive" });
     } finally {
@@ -72,7 +72,7 @@ export default function Auth() {
     try {
       await signUp(signupEmail, signupPassword, signupName);
       toast({ title: "Account created!", description: "Check your email to confirm your account." });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Signup error:", error);
       // Generic message to prevent user enumeration
       toast({ title: "Signup failed", description: "Unable to create account. Please try again.", variant: "destructive" });

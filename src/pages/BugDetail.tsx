@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,50 +30,52 @@ export default function BugDetail() {
   const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  const fetchBug = async () => {
+  const fetchBug = useCallback(async () => {
     if (!id) return;
-    const { data } = await supabase.from("bugs").select("*").eq("id", id).single();
-    setBug(data);
+    const { data, error } = await supabase.from("bugs").select("*").eq("id", id).maybeSingle();
+    if (error) console.error("Failed to load bug", error);
+    setBug(data ?? null);
     setLoading(false);
-  };
+  }, [id]);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     if (!id) return;
     const { data } = await supabase
       .from("comments").select("*").eq("bug_id", id).order("created_at", { ascending: true });
-    setComments(data || []);
-    const userIds = [...new Set((data || []).map(c => c.user_id))];
+    setComments(data ?? []);
+    const userIds = [...new Set((data ?? []).map(c => c.user_id))];
     if (userIds.length > 0) {
       const { data: profileData } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
       const map: Record<string, string> = {};
-      (profileData || []).forEach(p => { map[p.user_id] = p.full_name; });
+      (profileData ?? []).forEach(p => { if (p.full_name) map[p.user_id] = p.full_name; });
       setProfiles(prev => ({ ...prev, ...map }));
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    fetchBug();
-    fetchComments();
+    void fetchBug();
+    void fetchComments();
     const channel = supabase
       .channel(`bug-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `bug_id=eq.${id}` }, () => fetchComments())
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bugs", filter: `id=eq.${id}` }, () => fetchBug())
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `bug_id=eq.${id}` }, () => { void fetchComments(); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bugs", filter: `id=eq.${id}` }, () => { void fetchBug(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [id]);
+  }, [id, fetchBug, fetchComments]);
 
   const updateStatus = async (newStatus: Enums<"bug_status">) => {
     if (!bug || !user) return;
     const { error } = await supabase.from("bugs").update({ status: newStatus }).eq("id", bug.id);
     if (error) {
-      (console.error("Failed to update status", error), toast({ title: "Failed to update status", description: "Something went wrong. Please try again.", variant: "destructive" }));
-    } else {
-      await supabase.from("activity_log").insert({
-        bug_id: bug.id, user_id: user.id, action: "status_change",
-        old_value: bug.status, new_value: newStatus,
-      });
-      toast({ title: `Status updated to ${newStatus.replace("_", " ")}` });
+      console.error("Failed to update status", error);
+      toast({ title: "Failed to update status", description: "Something went wrong. Please try again.", variant: "destructive" });
+      return;
     }
+    await supabase.from("activity_log").insert({
+      bug_id: bug.id, user_id: user.id, action: "status_change",
+      old_value: bug.status, new_value: newStatus,
+    });
+    toast({ title: `Status updated to ${newStatus.replace("_", " ")}` });
   };
 
   const addComment = async () => {
@@ -82,8 +84,12 @@ export default function BugDetail() {
     const { error } = await supabase.from("comments").insert({
       bug_id: bug.id, user_id: user.id, content: newComment.trim(),
     });
-    if (error) (console.error("Failed to add comment", error), toast({ title: "Failed to add comment", description: "Something went wrong. Please try again.", variant: "destructive" }));
-    else setNewComment("");
+    if (error) {
+      console.error("Failed to add comment", error);
+      toast({ title: "Failed to add comment", description: "Something went wrong. Please try again.", variant: "destructive" });
+    } else {
+      setNewComment("");
+    }
     setSubmittingComment(false);
   };
 
