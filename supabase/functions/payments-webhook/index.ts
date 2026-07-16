@@ -12,7 +12,7 @@ function getSupabase() {
   return _supabase;
 }
 
-async function handleSubscriptionCreated(data: Record<string, any>, env: PaddleEnv) {
+async function handleSubscriptionCreated(data: Record<string, unknown>, env: PaddleEnv) {
   const { id, customerId, items, status, currentBillingPeriod, customData, scheduledChange } = data;
   const userId = customData?.userId;
   if (!userId) {
@@ -46,7 +46,7 @@ async function handleSubscriptionCreated(data: Record<string, any>, env: PaddleE
   }, { onConflict: 'paddle_subscription_id' });
 }
 
-async function handleSubscriptionUpdated(data: Record<string, any>, env: PaddleEnv) {
+async function handleSubscriptionUpdated(data: Record<string, unknown>, env: PaddleEnv) {
   const { id, status, currentBillingPeriod, scheduledChange, items } = data;
   const item = items?.[0];
   const priceId = item?.price?.importMeta?.externalId;
@@ -70,7 +70,7 @@ async function handleSubscriptionUpdated(data: Record<string, any>, env: PaddleE
     .eq('environment', env);
 }
 
-async function handleSubscriptionCanceled(data: Record<string, any>, env: PaddleEnv) {
+async function handleSubscriptionCanceled(data: Record<string, unknown>, env: PaddleEnv) {
   await getSupabase().from('subscriptions')
     .update({
       status: 'canceled',
