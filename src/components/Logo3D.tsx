@@ -11,7 +11,7 @@ const LINE_WIDTH = 1.2;
 // Module-level color refs so inner components can read them
 let activeBgHex = DEFAULT_BG_HEX;
 let activeLineHex = DEFAULT_LINE_HEX;
-let activeStripeOpacityBase = 0.35;
+const activeStripeOpacityBase = 0.35;
 
 // Generate a horizontal-line texture via canvas
 function makeStripeTexture(opacity = 0.35) {
