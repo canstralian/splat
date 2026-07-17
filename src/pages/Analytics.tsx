@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, parseISO, startOfDay } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { useNeonCharts } from "@/hooks/use-neon-charts";
-import { NeonPatternDefs, neonPatternId } from "@/components/NeonPatternDefs";
+import { NeonPatternDefs } from "@/components/NeonPatternDefs";
+import { neonPatternId } from "@/components/neon-pattern-id";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   PieChart, Pie, Cell,
