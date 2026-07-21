@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, parseISO, startOfDay } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { useNeonCharts } from "@/hooks/use-neon-charts";
-import { NeonPatternDefs, neonPatternId } from "@/components/NeonPatternDefs";
+import { NeonPatternDefs } from "@/components/NeonPatternDefs";
+import { neonPatternId } from "@/components/neon-pattern-id";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   PieChart, Pie, Cell,
@@ -215,38 +216,28 @@ export default function Analytics() {
                     <XAxis dataKey="status" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                     <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="critical" stackId="a" fill={`url(#${neonPatternId(SEVERITY_COLORS.critical)})`} stroke={SEVERITY_COLORS.critical} strokeWidth={1.5} shape={(props: any) => {
-                      const { x, y, width, height, fill, stroke } = props;
-                      return (<g><rect x={x} y={y} width={width} height={height} fill={fill} stroke="none" />
-                        <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x} y1={y} x2={x} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x+width} y1={y} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x} y1={y} x2={x+width} y2={y} stroke={stroke} strokeWidth={0.5} /></g>);
-                    }} />
-                    <Bar dataKey="high" stackId="a" fill={`url(#${neonPatternId(SEVERITY_COLORS.high)})`} stroke={SEVERITY_COLORS.high} strokeWidth={1.5} shape={(props: any) => {
-                      const { x, y, width, height, fill, stroke } = props;
-                      return (<g><rect x={x} y={y} width={width} height={height} fill={fill} stroke="none" />
-                        <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={0.5} />
-                        <line x1={x} y1={y} x2={x} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x+width} y1={y} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x} y1={y} x2={x+width} y2={y} stroke={stroke} strokeWidth={0.5} /></g>);
-                    }} />
-                    <Bar dataKey="medium" stackId="a" fill={`url(#${neonPatternId(SEVERITY_COLORS.medium)})`} stroke={SEVERITY_COLORS.medium} strokeWidth={1.5} shape={(props: any) => {
-                      const { x, y, width, height, fill, stroke } = props;
-                      return (<g><rect x={x} y={y} width={width} height={height} fill={fill} stroke="none" />
-                        <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={0.5} />
-                        <line x1={x} y1={y} x2={x} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x+width} y1={y} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x} y1={y} x2={x+width} y2={y} stroke={stroke} strokeWidth={0.5} /></g>);
-                    }} />
-                    <Bar dataKey="low" stackId="a" fill={`url(#${neonPatternId(SEVERITY_COLORS.low)})`} stroke={SEVERITY_COLORS.low} strokeWidth={1.5} shape={(props: any) => {
-                      const { x, y, width, height, fill, stroke } = props;
-                      return (<g><rect x={x} y={y} width={width} height={height} fill={fill} stroke="none" />
-                        <line x1={x} y1={y+height} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={0.5} />
-                        <line x1={x} y1={y} x2={x} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x+width} y1={y} x2={x+width} y2={y+height} stroke={stroke} strokeWidth={1.5} />
-                        <line x1={x} y1={y} x2={x+width} y2={y} stroke={stroke} strokeWidth={1.5} /></g>);
-                    }} />
+                    {(Object.keys(SEVERITY_LABELS) as Array<keyof typeof SEVERITY_LABELS>).map((sev) => (
+                      <Bar
+                        key={sev}
+                        dataKey={sev}
+                        stackId="a"
+                        fill={`url(#${neonPatternId(SEVERITY_COLORS[sev])})`}
+                        stroke={SEVERITY_COLORS[sev]}
+                        strokeWidth={1.5}
+                        shape={(props: { x: number; y: number; width: number; height: number; fill: string; stroke: string }) => {
+                          const { x, y, width, height, fill, stroke } = props;
+                          return (
+                            <g>
+                              <rect x={x} y={y} width={width} height={height} fill={fill} stroke="none" />
+                              <line x1={x} y1={y + height} x2={x + width} y2={y + height} stroke={stroke} strokeWidth={1.5} />
+                              <line x1={x} y1={y} x2={x} y2={y + height} stroke={stroke} strokeWidth={1.5} />
+                              <line x1={x + width} y1={y} x2={x + width} y2={y + height} stroke={stroke} strokeWidth={1.5} />
+                              <line x1={x} y1={y} x2={x + width} y2={y} stroke={stroke} strokeWidth={0.5} />
+                            </g>
+                          );
+                        }}
+                      />
+                    ))}
                   </BarChart>
                 </ChartContainer>
               </div>

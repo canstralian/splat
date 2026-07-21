@@ -1,21 +1,13 @@
-import { LayoutDashboard, Plus, Bug, BarChart3, Settings, LogOut, Search, ShieldCheck } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { StackedLogo } from "./StackedLogo";
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { navItems } from "@/components/app-nav-items";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-export const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: Plus, label: "Report Bug", path: "/bugs/new" },
-  { icon: Bug, label: "All Bugs", path: "/bugs" },
-  { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: ShieldCheck, label: "Security", path: "/security" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
 
 export function SidebarContent({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const location = useLocation();
