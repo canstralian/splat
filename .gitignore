@@ -33,3 +33,7 @@ dist-ssr
 __pycache__/
 *.pyc
 *.pyo
+
+# Cloudflare agent worker
+.wrangler/
+workers/agent/.dev.vars

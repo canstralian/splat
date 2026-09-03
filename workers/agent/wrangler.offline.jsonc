@@ -1,0 +1,47 @@
+/**
+ * Offline development/e2e harness configuration.
+ *
+ * Identical to wrangler.jsonc except:
+ * - no `ai` binding (Workers AI always proxies to Cloudflare and would demand
+ *   credentials at startup; the deterministic stub model never touches it)
+ * - vars point at the local mock Supabase (`npm run mock:supabase`)
+ *
+ * Usage: npx wrangler dev --config wrangler.offline.jsonc
+ * Never deploy this configuration.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "splatt-agent-offline",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGENT_SESSION",
+        "class_name": "AgentSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AgentSession"]
+    }
+  ],
+  "vars": {
+    "AGENT_VERSION": "0.1.0-offline",
+    "MODEL_PROVIDER": "stub",
+    "MODEL_ID": "stub",
+    "SUPABASE_URL": "http://127.0.0.1:8790",
+    "SUPABASE_PUBLISHABLE_KEY": "local-anon-key",
+    "ALLOWED_ORIGINS": "http://localhost:8080",
+    "AI_GATEWAY_ID": "",
+    "MODEL_TIMEOUT_MS": ""
+  }
+}

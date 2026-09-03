@@ -1,0 +1,70 @@
+/**
+ * Splat AI assistant worker.
+ *
+ * Cloudflare services used (and why):
+ * - Workers          — HTTP entry point for the agent API.
+ * - Durable Objects  — one `AgentSession` instance per user+session for strongly
+ *                      consistent conversation state and execution history.
+ *                      Application data stays in Supabase; the DO is NOT a database.
+ * - Workers AI       — model execution without any external API key.
+ * - AI Gateway       — optional; set `AI_GATEWAY_ID` to route Workers AI calls
+ *                      through a gateway for caching/analytics.
+ *
+ * Deliberately NOT used: D1 (Splat's relational data lives in Supabase Postgres
+ * behind RLS), KV, R2 and Queues (no current requirement).
+ *
+ * The worker requires NO secrets. `SUPABASE_PUBLISHABLE_KEY` is the public anon
+ * key; all data access happens with the calling user's own Supabase JWT so
+ * Postgres RLS remains the single authorization layer.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "splatt-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGENT_SESSION",
+        "class_name": "AgentSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AgentSession"]
+    }
+  ],
+  "vars": {
+    "AGENT_VERSION": "0.1.0",
+    "MODEL_PROVIDER": "workers-ai",
+    "MODEL_ID": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    // Splat's Lovable Cloud project (supabase/config.toml -> project_id).
+    "SUPABASE_URL": "https://ppyhmhgczcdsbbhnxjct.supabase.co",
+    // Public anon key. Not committed to the repo (it lives in the gitignored
+    // .env managed by Lovable). Set it here or via
+    // `wrangler deploy --var SUPABASE_PUBLISHABLE_KEY:<key>` before deploying.
+    "SUPABASE_PUBLISHABLE_KEY": "",
+    // Comma-separated list of allowed browser origins for CORS.
+    "ALLOWED_ORIGINS": "http://localhost:8080",
+    // Optional. Leave empty unless routing Workers AI through an AI Gateway.
+    "AI_GATEWAY_ID": "",
+    // Optional override for a single model-completion timeout (milliseconds).
+    "MODEL_TIMEOUT_MS": ""
+  }
+}

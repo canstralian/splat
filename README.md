@@ -26,7 +26,8 @@
 9. [Database & backend](#database--backend)
 10. [Authentication & roles](#authentication--roles)
 11. [Billing (Paddle)](#billing-paddle)
-12. [Design system](#design-system)
+12. [AI Assistant (Cloudflare)](#ai-assistant-cloudflare)
+13. [Design system](#design-system)
 13. [Testing](#testing)
 14. [Security](#security)
 15. [API reference](#api-reference)
@@ -127,6 +128,8 @@ All client traffic is authenticated through Supabase Auth. RLS policies are *den
 │   ├── App.tsx                   # Routes + providers
 │   ├── main.tsx                  # Entry
 │   └── index.css                 # Design tokens (HSL CSS variables)
+├── workers/
+│   └── agent/                    # Cloudflare Worker: Splat AI assistant (see its README)
 ├── supabase/
 │   ├── config.toml               # Project + per‑function config
 │   ├── functions/                # Deno edge functions
@@ -179,6 +182,7 @@ The dev server runs at <http://localhost:8080> by default (see `vite.config.ts`)
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Anon/publishable key for the client SDK. |
 | `VITE_SUPABASE_PROJECT_ID` | Project ref, used by edge function helpers. |
 | `VITE_PAYMENTS_CLIENT_TOKEN` | Paddle client‑side token (sandbox in `.env.development`). |
+| `VITE_AGENT_URL` | URL of the deployed Splat agent worker (`workers/agent`). Optional — the `/assistant` page shows a setup notice when unset. |
 
 **Server‑side secrets** (set via Lovable Cloud → Secrets, never committed):
 
@@ -199,6 +203,10 @@ npm run preview      # Preview the production build locally
 npm run lint         # Run ESLint over the project
 npm test             # Run Vitest once
 npm run test:watch   # Vitest in watch mode
+npm run agent:dev    # Run the AI assistant worker locally (wrangler dev)
+npm run agent:test   # Run the worker's test suite
+npm run agent:check  # Typecheck the worker
+npm run agent:deploy # Deploy the worker with Wrangler
 ```
 
 ## Database & backend
@@ -232,6 +240,17 @@ Use the Lovable database migration tool (or the Supabase CLI locally). Migration
 - `has_active_subscription()` and `get_subscription_tier()` SQL helpers are available for gating premium features.
 
 Sandbox vs live is selected by the `environment` column on `subscriptions` and the corresponding pair of API/webhook secrets.
+
+## AI Assistant (Cloudflare)
+
+Splat ships an AI assistant at `/assistant`, implemented as a Cloudflare Worker in [`workers/agent`](workers/agent/README.md). Signed-in users can search, inspect, file, comment on, and triage bugs conversationally.
+
+- **Runtime:** Cloudflare Workers + one Durable Object (SQLite) per user+session for conversation state and an execution audit log; Workers AI for model execution (no external model API keys). D1/KV/R2 are deliberately not used — application data stays in Lovable Cloud.
+- **Auth & authorization:** the worker verifies the caller's Supabase session JWT (same convention as the edge functions) and performs every read/write against PostgREST **with the user's own JWT**, so the existing RLS policies remain the single authorization layer. The worker stores no secrets.
+- **Capability boundaries:** the model only sees schema-validated tools. Write tools are exposed only when the user enables the "Allow changes" toggle — prompt content can never widen permissions.
+- **Client:** `src/integrations/agent/` is a typed, Zod-validated client following the same conventions as `src/integrations/edge-functions/`.
+
+See [`workers/agent/README.md`](workers/agent/README.md) for the full architecture, API reference, security model, offline e2e harness, and deployment runbook.
 
 ## Design system
 
