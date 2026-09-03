@@ -84,8 +84,12 @@ export class WorkersAiModel implements ModelClient {
   }
 
   private async completeOnce(messages: ModelChatMessage[], tools: ToolModelSpec[]): Promise<ModelResult> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new AgentError("model_timeout", "The model took too long to respond")), this.options.timeoutMs);
+      timer = setTimeout(
+        () => reject(new AgentError("model_timeout", "The model took too long to respond")),
+        this.options.timeoutMs,
+      );
     });
 
     let raw: unknown;
@@ -105,6 +109,8 @@ export class WorkersAiModel implements ModelClient {
     } catch (error) {
       if (error instanceof AgentError) throw error;
       throw new AgentError("model_error", "Model call failed", { cause: error });
+    } finally {
+      clearTimeout(timer);
     }
 
     const result = raw as { response?: unknown; tool_calls?: unknown };
