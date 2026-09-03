@@ -284,6 +284,7 @@ export class SessionEngine {
           executionId,
           code: agentError.code,
           message: agentError.message,
+          details: agentError.details,
           toolCallCount: partialCalls.length,
           durationMs: now() - startedAt,
         });

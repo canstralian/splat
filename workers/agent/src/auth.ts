@@ -41,7 +41,7 @@ export async function authenticateRequest(
   config: AuthConfig,
 ): Promise<AuthenticatedCaller> {
   const accessToken = extractBearerToken(request);
-  const fetchFn = config.fetchFn ?? fetch;
+  const fetchFn: typeof fetch = config.fetchFn ?? ((input, init) => fetch(input, init));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);

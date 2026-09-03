@@ -24,7 +24,9 @@ export class SupabaseRestClient {
   private readonly fetchFn: typeof fetch;
 
   constructor(private readonly config: SupabaseRestConfig) {
-    this.fetchFn = config.fetchFn ?? fetch;
+    // Wrap the global fetch: calling it via `this.fetchFn` would otherwise
+    // rebind `this` and trigger workerd's illegal-invocation guard.
+    this.fetchFn = config.fetchFn ?? ((input, init) => fetch(input, init));
   }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
@@ -45,7 +47,10 @@ export class SupabaseRestClient {
       });
     } catch (cause) {
       if (cause instanceof Error && cause.name === "AbortError") throw cause;
-      throw new AgentError("upstream_error", "Data service is unavailable", { cause });
+      throw new AgentError("upstream_error", "Data service is unavailable", {
+        cause,
+        details: { cause: cause instanceof Error ? cause.message : String(cause) },
+      });
     }
 
     if (!response.ok) {
