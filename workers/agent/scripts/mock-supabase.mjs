@@ -93,7 +93,7 @@ const server = createServer(async (req, res) => {
   }
 
   // PostgREST surface — RLS approximated: any authenticated user can read;
-  // updates only by the reporter (matching Splat's reporter/assignee/admin rule).
+  // updates only by the reporter in this simplified mock.
   if (!user) return send(res, 401, { message: "no session" });
 
   if (url.pathname === "/rest/v1/bugs" && req.method === "GET") {
