@@ -23,6 +23,8 @@ export interface AgentLimits {
   modelTimeoutMs: number;
   /** Timeout for the Supabase auth verification call. */
   authTimeoutMs: number;
+  /** Maximum JSON request body accepted by the HTTP router. */
+  maxJsonBodyBytes: number;
   /** Maximum execution-history entries returned to the client. */
   maxExecutionsListed: number;
 }
@@ -40,6 +42,7 @@ export const DEFAULT_LIMITS: AgentLimits = {
   defaultToolTimeoutMs: 10_000,
   modelTimeoutMs: 60_000,
   authTimeoutMs: 10_000,
+  maxJsonBodyBytes: 16_384,
   maxExecutionsListed: 50,
 };
 

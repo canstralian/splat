@@ -21,9 +21,17 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "splatt-agent",
   "main": "src/index.ts",
-  "compatibility_date": "2025-05-05",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": {
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
   },
   "ai": {
     "binding": "AI"
@@ -53,6 +61,10 @@
     // `wrangler deploy --var SUPABASE_PUBLISHABLE_KEY:<key>` before deploying.
     "SUPABASE_PUBLISHABLE_KEY": "",
     // Comma-separated list of allowed browser origins for CORS.
-    "ALLOWED_ORIGINS": "http://localhost:8080"
+    "ALLOWED_ORIGINS": "http://localhost:8080",
+    // Optional. Leave empty unless routing Workers AI through an AI Gateway.
+    "AI_GATEWAY_ID": "",
+    // Optional override for a single model-completion timeout (milliseconds).
+    "MODEL_TIMEOUT_MS": ""
   }
 }

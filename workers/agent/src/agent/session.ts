@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
 import { DEFAULT_LIMITS } from "../constants";
-import type { Env } from "../env";
 import { logEvent } from "../observability/log";
 import { SupabaseRestClient } from "../supabase/rest";
 import { createSplatToolRegistry } from "../tools/splat";
@@ -21,13 +20,13 @@ export class AgentSession extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.engine = new SessionEngine({
-      store: new SqlSessionStore(ctx.storage.sql),
-      model: createModelClient(env, logEvent, DEFAULT_LIMITS.modelTimeoutMs),
+      store: new SqlSessionStore(this.ctx.storage.sql),
+      model: createModelClient(this.env, logEvent, DEFAULT_LIMITS.modelTimeoutMs),
       registry: createSplatToolRegistry(),
       supabaseFactory: (accessToken) =>
         new SupabaseRestClient({
-          url: env.SUPABASE_URL,
-          publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
+          url: this.env.SUPABASE_URL,
+          publishableKey: this.env.SUPABASE_PUBLISHABLE_KEY,
           accessToken,
         }),
       limits: DEFAULT_LIMITS,

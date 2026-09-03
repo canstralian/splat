@@ -74,7 +74,11 @@ export type ExecutionsOutput = ExecutionsSuccess | EnvelopeError;
 
 export type ResetOutput = { ok: true } | EnvelopeError;
 
-/** Typed surface of the AgentSession Durable Object as seen through its stub. */
+/**
+ * RPC surface of AgentSession. Production code uses the generated
+ * `DurableObjectNamespace<AgentSession>` stub; this interface exists so
+ * router unit tests can supply a fake namespace without spinning up workerd.
+ */
 export interface AgentSessionStub {
   runTurn(input: TurnInput): Promise<TurnOutput>;
   getState(input: { userId: string }): Promise<SessionStateOutput>;

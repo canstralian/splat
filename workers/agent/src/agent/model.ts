@@ -98,12 +98,9 @@ export class WorkersAiModel implements ModelClient {
       if (tools.length > 0) inputs.tools = tools;
       const gateway = this.options.gatewayId ? { gateway: { id: this.options.gatewayId } } : undefined;
       raw = await Promise.race([
-        // Model ids are dynamic config; the Ai type only accepts known literals.
-        (this.ai as { run: (model: string, inputs: Record<string, unknown>, options?: unknown) => Promise<unknown> }).run(
-          this.modelId,
-          inputs,
-          gateway,
-        ),
+        // Dynamic model ids hit the `run<Model extends string>` fallback on Ai
+        // (workers-types 5.20260903.1+); known literals keep their typed overloads.
+        this.ai.run(this.modelId, inputs, gateway),
         timeout,
       ]);
     } catch (error) {

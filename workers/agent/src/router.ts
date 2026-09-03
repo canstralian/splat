@@ -2,10 +2,10 @@ import { z } from "zod";
 import { authenticateRequest, type AuthConfig, type AuthenticatedCaller } from "./auth";
 import { DEFAULT_LIMITS, SESSION_ID_PATTERN } from "./constants";
 import { corsHeadersFor, parseAllowedOrigins } from "./cors";
-import { assertConfigured, type Env } from "./env";
+import { assertConfigured } from "./env";
 import { AgentError, toAgentError } from "./errors";
 import { logEvent, type LogFn } from "./observability/log";
-import type { AgentSessionStub, EnvelopeError } from "./agent/types";
+import type { ExecutionsOutput, ResetOutput, SessionStateOutput, TurnOutput } from "./agent/types";
 
 /**
  * HTTP surface of the agent:
@@ -28,6 +28,7 @@ const messageBodySchema = z.object({
 export interface RouterDeps {
   authenticate?: (request: Request, config: AuthConfig) => Promise<AuthenticatedCaller>;
   log?: LogFn;
+  ctx?: ExecutionContext;
 }
 
 function json(body: unknown, status: number, cors: Record<string, string>): Response {
@@ -41,13 +42,43 @@ function errorResponse(error: AgentError, cors: Record<string, string>): Respons
   return json({ error: error.toPublicJSON() }, error.httpStatus, cors);
 }
 
-function envelopeToResponse(out: { ok: true } | EnvelopeError, cors: Record<string, string>): Response {
-  if (out.ok) {
-    const { ok: _ok, ...rest } = out as unknown as Record<string, unknown>;
-    return json(rest, 200, cors);
+type SessionEnvelope = TurnOutput | SessionStateOutput | ExecutionsOutput | ResetOutput;
+
+function successPayload(out: Extract<SessionEnvelope, { ok: true }>): Record<string, unknown> {
+  if ("reply" in out) {
+    return {
+      executionId: out.executionId,
+      reply: out.reply,
+      intent: out.intent,
+      toolCalls: out.toolCalls,
+      modelId: out.modelId,
+      durationMs: out.durationMs,
+    };
   }
-  const { status, executionId, ...publicError } = out.error;
-  return json({ error: { ...publicError, ...(executionId ? { executionId } : {}) } }, status, cors);
+  if ("messages" in out) {
+    return { messages: out.messages, executionCount: out.executionCount };
+  }
+  if ("executions" in out) {
+    return { executions: out.executions };
+  }
+  return {};
+}
+
+function envelopeToResponse(out: SessionEnvelope, cors: Record<string, string>): Response {
+  if (!out.ok) {
+    const { status, executionId, ...publicError } = out.error;
+    return json({ error: { ...publicError, ...(executionId ? { executionId } : {}) } }, status, cors);
+  }
+  return json(successPayload(out), 200, cors);
+}
+
+function assertJsonBodySize(request: Request): void {
+  const lengthHeader = request.headers.get("Content-Length");
+  if (lengthHeader === null) return;
+  const length = Number.parseInt(lengthHeader, 10);
+  if (!Number.isFinite(length) || length < 0 || length > DEFAULT_LIMITS.maxJsonBodyBytes) {
+    throw new AgentError("invalid_request", "Request body is too large");
+  }
 }
 
 export async function handleAgentRequest(
@@ -70,9 +101,9 @@ export async function handleAgentRequest(
       return json(
         {
           ok: true,
-          version: env.AGENT_VERSION ?? "unknown",
-          model: env.MODEL_ID ?? "unknown",
-          provider: env.MODEL_PROVIDER ?? "workers-ai",
+          version: env.AGENT_VERSION || "unknown",
+          model: env.MODEL_ID || "unknown",
+          provider: env.MODEL_PROVIDER || "workers-ai",
         },
         200,
         cors,
@@ -99,10 +130,11 @@ export async function handleAgentRequest(
     });
 
     // User isolation by construction: the DO name embeds the verified user id.
-    const doName = `${identity.userId}:${sessionId}`;
-    const stub = env.AGENT_SESSION.get(env.AGENT_SESSION.idFromName(doName)) as unknown as AgentSessionStub;
+    // getByName is the current DurableObjectNamespace API (replaces idFromName+get).
+    const stub = env.AGENT_SESSION.getByName(`${identity.userId}:${sessionId}`);
 
     if (subResource === "messages" && request.method === "POST") {
+      assertJsonBodySize(request);
       let rawBody: unknown;
       try {
         rawBody = await request.json();

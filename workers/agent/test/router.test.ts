@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { AgentSession } from "../src/agent/session";
 import type { AgentSessionStub, TurnInput } from "../src/agent/types";
 import { AgentError } from "../src/errors";
-import type { Env } from "../src/env";
 import { handleAgentRequest, type RouterDeps } from "../src/router";
 import { silentLog } from "./helpers";
 
 interface FakeNamespace {
-  namespace: DurableObjectNamespace;
+  namespace: DurableObjectNamespace<AgentSession>;
   names: string[];
   turnInputs: TurnInput[];
 }
@@ -39,14 +39,11 @@ function fakeNamespace(stubOverrides: Partial<AgentSessionStub> = {}): FakeNames
     ...stubOverrides,
   };
   const namespace = {
-    idFromName(name: string) {
+    getByName(name: string) {
       names.push(name);
-      return { name } as unknown as DurableObjectId;
+      return stub;
     },
-    get() {
-      return stub as unknown as DurableObjectStub;
-    },
-  } as unknown as DurableObjectNamespace;
+  } as DurableObjectNamespace<AgentSession>;
   return { namespace, names, turnInputs };
 }
 
@@ -57,6 +54,8 @@ function makeEnv(overrides: Partial<Env> = {}, ns: FakeNamespace = fakeNamespace
     AGENT_VERSION: "test",
     MODEL_ID: "test-model",
     MODEL_PROVIDER: "stub",
+    AI_GATEWAY_ID: "",
+    MODEL_TIMEOUT_MS: "",
     SUPABASE_URL: "https://supabase.test",
     SUPABASE_PUBLISHABLE_KEY: "anon-key",
     ALLOWED_ORIGINS: "http://localhost:8080",
@@ -168,6 +167,21 @@ describe("handleAgentRequest", () => {
     });
     const response = await handleAgentRequest(request, makeEnv(), authAs("user-1"));
     expect(response.status).toBe(400);
+  });
+
+  it("rejects oversized JSON bodies before parsing", async () => {
+    const request = new Request("https://agent.test/api/agent/sessions/s1/messages", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer jwt-1",
+        "Content-Type": "application/json",
+        "Content-Length": "20000",
+      },
+      body: "{}",
+    });
+    const response = await handleAgentRequest(request, makeEnv(), authAs("user-1"));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: "invalid_request" } });
   });
 
   it("rejects bodies that fail schema validation", async () => {

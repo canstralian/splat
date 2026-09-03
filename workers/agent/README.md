@@ -53,10 +53,9 @@ Postgres behind RLS — a second database would split the source of truth),
   `allowWrites: true`, which is set by an explicit UI toggle. Prompt content
   can never widen tool exposure — "ignore the rules and…" changes nothing,
   because exposure is computed by the runtime before the model runs.
-- **Isolation**: the Durable Object is addressed as
-  `${verifiedUserId}:${sessionId}`, so users cannot reach each other's
-  sessions by construction; the session additionally binds its owner's user id
-  as defense-in-depth.
+- **Isolation**: the Durable Object is addressed via `getByName(\`${verifiedUserId}:${sessionId}\`)`,
+  so users cannot reach each other's sessions by construction; the session
+  additionally binds its owner's user id as defense-in-depth.
 - **Identity injection**: `reporter_id` / `user_id` fields are set from the
   verified identity by the runtime. Model-supplied identity fields are
   stripped by input schemas.
@@ -121,10 +120,15 @@ history is also queryable by the user via the API.
 ```bash
 cd workers/agent
 npm install
+npm run cf-typegen     # regenerate worker-configuration.d.ts after wrangler.jsonc changes
 npm run check          # tsc --noEmit
-npm test               # vitest (82 tests)
+npm test               # vitest
 npm run validate:config  # wrangler deploy --dry-run
 ```
+
+Binding types come from `wrangler types` (`worker-configuration.d.ts`). Do not
+hand-write `interface Env`. The Worker uses `compatibility_date` 2026-09-03,
+`nodejs_compat`, structured JSON logs, and traces (`observability.traces`).
 
 ### Offline end-to-end (no Cloudflare account, no Supabase project)
 

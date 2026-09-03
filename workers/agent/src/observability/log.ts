@@ -4,8 +4,18 @@
  * Every event is a single JSON line. Free-form strings are truncated so logs
  * stay useful without recording entire conversations, and access tokens are
  * never passed in (enforced by convention: callers log ids and metadata only).
+ *
+ * Error-severity events go through `console.error` so they appear at the
+ * correct level in the Workers Observability dashboard.
  */
 const MAX_STRING_LENGTH = 256;
+
+const ERROR_EVENTS = new Set([
+  "turn_failed",
+  "request_failed",
+  "tool_call_error",
+  "model_retry",
+]);
 
 export type LogFn = (event: string, fields?: Record<string, unknown>) => void;
 
@@ -27,11 +37,14 @@ function sanitize(value: unknown): unknown {
 }
 
 export const logEvent: LogFn = (event, fields = {}) => {
-  console.log(
-    JSON.stringify({
-      ts: new Date().toISOString(),
-      event,
-      ...(sanitize(fields) as Record<string, unknown>),
-    }),
-  );
+  const line = JSON.stringify({
+    ts: new Date().toISOString(),
+    event,
+    ...(sanitize(fields) as Record<string, unknown>),
+  });
+  if (ERROR_EVENTS.has(event) || fields.status === "error" || typeof fields.errorCode === "string") {
+    console.error(line);
+    return;
+  }
+  console.log(line);
 };
