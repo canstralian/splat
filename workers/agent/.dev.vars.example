@@ -1,0 +1,11 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev`.
+#
+# Point SUPABASE_URL at the real project (plus its anon key) to run against
+# live data, or at the bundled mock (`npm run mock:supabase`) for offline
+# end-to-end testing.
+SUPABASE_URL=http://127.0.0.1:8790
+SUPABASE_PUBLISHABLE_KEY=local-anon-key
+# `stub` runs a deterministic offline model so the full lifecycle can be
+# exercised without Cloudflare credentials. Production uses `workers-ai`.
+MODEL_PROVIDER=stub
+ALLOWED_ORIGINS=http://localhost:8080
