@@ -16,6 +16,11 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "error",
+      // The Agents SDK `this.sql`...`` API is a side-effecting tagged template.
+      "@typescript-eslint/no-unused-expressions": [
+        "error",
+        { allowTaggedTemplates: true },
+      ],
       "no-console": "off",
     },
   },

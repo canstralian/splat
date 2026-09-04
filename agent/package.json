@@ -16,6 +16,9 @@
     "migrations:apply:remote": "wrangler d1 migrations apply agent_runtime --remote"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "agents": "^0.22.0",
     "zod": "^4.0.0"
   },

@@ -13,6 +13,10 @@ export default defineConfig(async () => {
   return {
     plugins: [
       cloudflareTest({
+        // Run fully locally. The Workers AI binding is remote-only; tests use the
+        // deterministic scripted provider and never call AI, so we disable remote
+        // bindings to avoid requiring a Cloudflare API token.
+        remoteBindings: false,
         wrangler: { configPath: "./wrangler.jsonc" },
         miniflare: {
           compatibilityFlags: ["nodejs_compat"],

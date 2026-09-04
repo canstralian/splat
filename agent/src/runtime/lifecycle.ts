@@ -236,12 +236,9 @@ export async function runLifecycle(params: LifecycleParams): Promise<RunOutcome>
         decision: gate.decision,
         reason: gate.reason,
       });
-      try {
-        PolicyEngine.enforce(gate);
-      } catch (err) {
-        // Denials and escalations are terminal for this Run.
-        throw err;
-      }
+      // Throws PolicyDeniedError / ApprovalRequiredError on non-allow; these are
+      // terminal for the Run and handled by handleFailure.
+      PolicyEngine.enforce(gate);
 
       // === Stage: TOOL EXECUTION (VERIFIED in-system operation) ===
       const idempotencyKey = `${runId}:${toolCallCount}:${tool.name}`;

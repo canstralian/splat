@@ -41,6 +41,12 @@ export class OrchestratorAgent extends Agent<Env, SessionState> {
   };
 
   private readonly deps: RuntimeDeps = defaultDeps;
+  /**
+   * Last persisted runCount, tracked in a plain field. `validateStateChange`
+   * must NOT read the reactive `this.state` getter, because the getter can
+   * re-enter `_setStateInternal` -> `validateStateChange` and recurse.
+   */
+  private lastRunCount = 0;
 
   onStart(): void {
     this.ensureSchema();
@@ -62,11 +68,17 @@ export class OrchestratorAgent extends Agent<Env, SessionState> {
   /**
    * Reject illegal state transitions. Runs monotonically increase; a decrease
    * indicates a stale or malicious update. Runs BEFORE persistence/broadcast.
+   * Compares against `lastRunCount` (a plain field), never `this.state`.
    */
   validateStateChange(next: SessionState, _source: Connection | "server"): void {
-    if (next.runCount < this.state.runCount) {
+    if (next.runCount < this.lastRunCount) {
       throw new Error("Illegal state transition: runCount must not decrease");
     }
+  }
+
+  /** Track the last persisted runCount after each successful state change. */
+  onStateChanged(state: SessionState, _source: Connection | "server"): void {
+    this.lastRunCount = state.runCount;
   }
 
   /** Execute one governed Run for a user message. Primary entry point (RPC). */
