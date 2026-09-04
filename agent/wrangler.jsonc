@@ -1,0 +1,84 @@
+{
+  // Cloudflare Workers configuration for the Splat agent runtime.
+  // This is a self-contained Worker, independent of the root Vite SPA.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "splat-agent-runtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "workers_dev": true,
+  // Non-secret configuration. Secrets (API_AUTH_TOKEN, MODEL_API_KEY) are provided
+  // via `wrangler secret put` and are NEVER committed or exposed to the model.
+  "vars": {
+    "AGENT_ID": "splat-orchestrator",
+    "AGENT_VERSION": "0.1.0",
+    "MODEL_PROVIDER": "workers-ai",
+    "MODEL_ID": "@cf/meta/llama-3.1-8b-instruct",
+    // Test/experimentation hook. MUST stay "false" in production so the scripted
+    // (deterministic) model provider cannot be driven by request input.
+    "ALLOW_SCRIPTED_PROVIDER": "false",
+    "MAX_TOOL_CALLS": "8",
+    "MAX_WALL_CLOCK_MS": "60000",
+    "TOOL_DEFAULT_TIMEOUT_MS": "10000"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ORCHESTRATOR",
+        "class_name": "OrchestratorAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["OrchestratorAgent"]
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agent_runtime",
+      // Placeholder id for local dev / CI. Replace with the real id from
+      // `wrangler d1 create agent_runtime` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG_KV",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "EVIDENCE_BUCKET",
+      "bucket_name": "splat-agent-evidence"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "BACKGROUND_QUEUE",
+        "queue": "splat-agent-background"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "splat-agent-background",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "splat-agent-background-dlq"
+      }
+    ]
+  },
+  "ai": {
+    "binding": "AI"
+  }
+}
