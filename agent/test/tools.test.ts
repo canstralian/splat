@@ -19,6 +19,7 @@ function baseCtx(overrides: Partial<{ sessionId: string; idempotencyKey: string 
   return {
     runId: "run-test",
     sessionId: overrides.sessionId ?? "sess-tools",
+    ownerUserId: "user-tools",
     env,
     logger: new Logger(),
     now: () => Date.now(),

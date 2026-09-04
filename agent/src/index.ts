@@ -1,6 +1,7 @@
 import { getAgentByName } from "agents";
 import type { BackgroundMessage, Env } from "./env";
-import { AgentError } from "./errors";
+import { AgentError, UnauthenticatedError } from "./errors";
+import { authenticate, type AuthContext } from "./auth/authenticate";
 import { Logger } from "./observability/logger";
 import { RunStore } from "./state/run-store";
 import { replayRun } from "./replay/replay";
@@ -14,9 +15,13 @@ import type { RunInput } from "./types";
 export { OrchestratorAgent } from "./agent/orchestrator-agent";
 
 /**
- * Worker entry point. Owns HTTP routing, authentication and input validation at
- * the trust boundary, then delegates governed execution to the per-session
- * Durable Object. Also consumes the background queue for evidence archival.
+ * Worker entry point. Owns HTTP routing, authentication (Splatt Supabase JWT)
+ * and input validation at the trust boundary, then delegates governed execution
+ * to a per-user, per-session Durable Object. Also consumes the background queue
+ * for evidence archival.
+ *
+ * Sessions are namespaced by authenticated user id, so a user physically cannot
+ * address another user's session (tenant/user isolation).
  */
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -29,40 +34,34 @@ export default {
         return json({ status: "ok", agent: env.AGENT_ID, version: env.AGENT_VERSION });
       }
 
-      // All other routes require authentication.
-      const authError = authenticate(request, env);
-      if (authError) return authError;
+      // Authenticate all other routes (throws UnauthenticatedError on failure).
+      const auth = await authenticate(request, env);
 
-      // POST /v1/sessions/:sessionId/messages  -> run the agent
       const messageRoute = url.pathname.match(
         /^\/v1\/sessions\/([^/]+)\/messages$/,
       );
       if (messageRoute && request.method === "POST") {
-        return await handleMessage(request, env, messageRoute[1]);
+        return await handleMessage(request, env, messageRoute[1], auth);
       }
 
-      // GET /v1/sessions/:sessionId  -> session summary + history
       const sessionRoute = url.pathname.match(/^\/v1\/sessions\/([^/]+)$/);
       if (sessionRoute && request.method === "GET") {
-        return await handleGetSession(env, sessionRoute[1]);
+        return await handleGetSession(env, sessionRoute[1], auth);
       }
 
-      // GET /v1/runs/:runId  -> run ledger row
       const runRoute = url.pathname.match(/^\/v1\/runs\/([^/]+)$/);
       if (runRoute && request.method === "GET") {
-        return await handleGetRun(env, runRoute[1]);
+        return await handleGetRun(env, runRoute[1], auth);
       }
 
-      // GET /v1/runs/:runId/evidence  -> full evidence ledger
       const evidenceRoute = url.pathname.match(/^\/v1\/runs\/([^/]+)\/evidence$/);
       if (evidenceRoute && request.method === "GET") {
-        return await handleGetEvidence(env, evidenceRoute[1]);
+        return await handleGetEvidence(env, evidenceRoute[1], auth);
       }
 
-      // GET /v1/runs/:runId/replay  -> reconstructed, invariant-checked run
       const replayRoute = url.pathname.match(/^\/v1\/runs\/([^/]+)\/replay$/);
       if (replayRoute && request.method === "GET") {
-        return await handleReplay(env, replayRoute[1]);
+        return await handleReplay(env, replayRoute[1], auth);
       }
 
       return json({ error: "not_found" }, 404);
@@ -86,7 +85,6 @@ export default {
         logger.error("Background message failed", {
           error: err instanceof Error ? err.message : String(err),
         });
-        // Let the platform retry (respecting max_retries / DLQ).
         message.retry();
       }
     }
@@ -101,6 +99,7 @@ async function handleMessage(
   request: Request,
   env: Env,
   rawSessionId: string,
+  auth: AuthContext,
 ): Promise<Response> {
   const sessionId = sessionIdSchema.safeParse(rawSessionId);
   if (!sessionId.success) {
@@ -128,19 +127,20 @@ async function handleMessage(
     );
   }
 
-  // Only honor a scripted model if the environment explicitly allows it.
   const modelScript =
     env.ALLOW_SCRIPTED_PROVIDER === "true" ? parsed.data.modelScript : undefined;
 
   const input: RunInput = {
     sessionId: sessionId.data,
+    ownerUserId: auth.userId,
+    userToken: auth.userToken,
     message: parsed.data.message,
     idempotencyKey: parsed.data.idempotencyKey,
     approvals: parsed.data.approvals,
     modelScript,
   };
 
-  const stub = await getAgentByName(env.ORCHESTRATOR, sessionId.data);
+  const stub = await getAgentByName(env.ORCHESTRATOR, sessionKey(auth.userId, sessionId.data));
   const outcome = await stub.startRun(input);
 
   const httpStatus =
@@ -155,40 +155,51 @@ async function handleMessage(
   return json({ run: outcome }, httpStatus);
 }
 
-async function handleGetSession(env: Env, rawSessionId: string): Promise<Response> {
+async function handleGetSession(
+  env: Env,
+  rawSessionId: string,
+  auth: AuthContext,
+): Promise<Response> {
   const sessionId = sessionIdSchema.safeParse(rawSessionId);
   if (!sessionId.success) return json({ error: "invalid_session_id" }, 400);
 
-  const stub = await getAgentByName(env.ORCHESTRATOR, sessionId.data);
+  const stub = await getAgentByName(env.ORCHESTRATOR, sessionKey(auth.userId, sessionId.data));
   const summary = await stub.getSessionSummary();
   const history = await stub.getHistory();
   return json({ session: summary, history });
 }
 
-async function handleGetRun(env: Env, rawRunId: string): Promise<Response> {
+async function handleGetRun(env: Env, rawRunId: string, auth: AuthContext): Promise<Response> {
   const runId = runIdSchema.safeParse(rawRunId);
   if (!runId.success) return json({ error: "invalid_run_id" }, 400);
 
   const store = new RunStore(env.DB);
   const run = await store.getRun(runId.data);
-  if (!run) return json({ error: "not_found" }, 404);
+  // Not found and not-owned are indistinguishable to avoid leaking existence.
+  if (!run || run.ownerUserId !== auth.userId) return json({ error: "not_found" }, 404);
   return json({ run });
 }
 
-async function handleGetEvidence(env: Env, rawRunId: string): Promise<Response> {
+async function handleGetEvidence(env: Env, rawRunId: string, auth: AuthContext): Promise<Response> {
   const runId = runIdSchema.safeParse(rawRunId);
   if (!runId.success) return json({ error: "invalid_run_id" }, 400);
 
   const store = new RunStore(env.DB);
+  const run = await store.getRun(runId.data);
+  if (!run || run.ownerUserId !== auth.userId) return json({ error: "not_found" }, 404);
+
   const evidence = await store.listEvidence(runId.data);
   return json({ runId: runId.data, evidence });
 }
 
-async function handleReplay(env: Env, rawRunId: string): Promise<Response> {
+async function handleReplay(env: Env, rawRunId: string, auth: AuthContext): Promise<Response> {
   const runId = runIdSchema.safeParse(rawRunId);
   if (!runId.success) return json({ error: "invalid_run_id" }, 400);
 
   const store = new RunStore(env.DB);
+  const run = await store.getRun(runId.data);
+  if (!run || run.ownerUserId !== auth.userId) return json({ error: "not_found" }, 404);
+
   const report = await replayRun(store, runId.data);
   return json({ replay: report });
 }
@@ -211,7 +222,6 @@ async function handleBackgroundMessage(
   const evidence = await store.listEvidence(message.runId);
   const bundle = JSON.stringify({ run, evidence, archivedAt: Date.now() });
 
-  // Idempotent: writing to the same key overwrites the same audit bundle.
   await env.EVIDENCE_BUCKET.put(`runs/${message.runId}/audit.json`, bundle, {
     httpMetadata: { contentType: "application/json" },
   });
@@ -225,27 +235,9 @@ async function handleBackgroundMessage(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Constant-time-ish bearer token check against the API_AUTH_TOKEN secret. */
-function authenticate(request: Request, env: Env): Response | null {
-  if (!env.API_AUTH_TOKEN) {
-    // Fail closed: if no token is configured, reject all authenticated routes.
-    return json({ error: "server_misconfigured" }, 503);
-  }
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token || !timingSafeEqual(token, env.API_AUTH_TOKEN)) {
-    return json({ error: "unauthenticated" }, 401);
-  }
-  return null;
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
+/** Durable Object name: namespaced by user so sessions cannot collide across users. */
+function sessionKey(userId: string, sessionId: string): string {
+  return `${userId}::${sessionId}`;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -256,6 +248,10 @@ function json(body: unknown, status = 200): Response {
 }
 
 function errorResponse(err: unknown, logger: Logger): Response {
+  if (err instanceof UnauthenticatedError) {
+    logger.warn("Unauthenticated request", { message: err.message });
+    return json({ error: "unauthenticated" }, 401);
+  }
   if (err instanceof AgentError) {
     logger.warn("Request failed", { code: err.code, message: err.message });
     const status =
@@ -266,7 +262,6 @@ function errorResponse(err: unknown, logger: Logger): Response {
           : err.code === "INVALID_INPUT"
             ? 400
             : 422;
-    // Generic client-facing error; details go to logs, not the response body.
     return json({ error: err.code.toLowerCase() }, status);
   }
   logger.error("Unhandled error", {

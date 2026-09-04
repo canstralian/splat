@@ -3,11 +3,29 @@
 A production-grade, **governed, evidence-first AI agent runtime** on Cloudflare
 Workers, built with the [Agents SDK](https://developers.cloudflare.com/agents/).
 
-> This is a **self-contained subproject**. It is intentionally isolated from the
-> root Splat SPA (Vite/React/Supabase): it has its own `package.json`,
-> `wrangler.jsonc`, TypeScript, ESLint and test configuration and shares no build
-> or runtime with the SPA. The only change made to the root project is an ESLint
-> ignore entry for `agent/`.
+> This is a **self-contained Worker subproject** with its own `package.json`,
+> `wrangler.jsonc`, TypeScript, ESLint and test configuration. It does not share a
+> build or runtime with the SPA, but it **integrates with Splatt at the product
+> level**: it authenticates users with Splatt's existing **Supabase auth** and can
+> read a user's Splatt data (bugs) through Supabase RLS on the user's behalf. The
+> SPA calls it via `src/lib/agentClient.ts`. Root changes are limited to that
+> client library (+ its test) and an ESLint ignore for `agent/`.
+
+## Splatt integration
+
+- **Authentication (reused, not reinvented):** the Worker verifies the user's
+  Supabase access token (`AUTH_MODE=supabase`, HS256 via `SUPABASE_JWT_SECRET`).
+  The authenticated Supabase `sub` is the isolation principal. A `service` mode
+  (static `API_AUTH_TOKEN`) exists for trusted internal callers and never
+  impersonates a user.
+- **Isolation:** Durable Object sessions are namespaced `"<userId>::<sessionId>"`,
+  so one user cannot address another's session; every Run is tagged with
+  `owner_user_id` and read endpoints return `404` for non-owners.
+- **Data:** the `splat_bug_search` tool queries the user's bugs via Supabase
+  PostgREST using the user's own token, so Postgres RLS is fully enforced and no
+  service-role key is used.
+- **Frontend:** the SPA uses `src/lib/agentClient.ts` (`runAgentTask`,
+  `checkAgentHealth`) with the current Supabase session token.
 
 ## Why this design
 
@@ -67,7 +85,8 @@ Tools (`src/tools/`) declare `name`, `description`, Zod `inputSchema`/`outputSch
 `failureBehavior` and the evidence they produce. Arguments are validated before
 execution; output is validated after. Arbitrary invocation is impossible — a tool
 must be registered and its capability granted by policy. Built-ins: `echo`,
-`calculator`, `config_read`, `memory_read`, `memory_write` (mutating, idempotent).
+`calculator`, `config_read`, `memory_read`, `memory_write` (mutating, idempotent),
+and `splat_bug_search` (reads the user's Splatt bugs via Supabase RLS).
 
 ### Governance model
 
@@ -102,11 +121,14 @@ present).
 
 ### Security
 
-Least privilege throughout: bearer-token auth at the Worker boundary (fail-closed
-if unset), all external input validated with Zod, model output treated as
-untrusted, capability gates on every tool, no arbitrary URL fetch or code
-execution, per-session isolation, and secrets read only from bindings — never
-placed in prompts, evidence, or logs.
+Least privilege throughout: **Supabase JWT auth** at the Worker boundary
+(fail-closed if the secret is unset; authorization always derives from the
+runtime check, never from prompt/model content), per-user/session isolation, all
+external input validated with Zod, model output treated as untrusted, capability
+gates on every tool, no arbitrary URL fetch or code execution, and secrets read
+only from bindings — never placed in prompts, evidence, or logs. The user's
+access token is forwarded only to user-scoped tools (e.g. `splat_bug_search`) and
+is never exposed to the model.
 
 ## Development
 
@@ -135,9 +157,25 @@ wrangler r2 bucket create splat-agent-evidence
 wrangler queues create splat-agent-background
 wrangler queues create splat-agent-background-dlq
 wrangler d1 migrations apply agent_runtime --remote
-wrangler secret put API_AUTH_TOKEN          # required (auth)
+# Splatt auth + data (reuse the same Supabase project as the SPA):
+wrangler secret put SUPABASE_JWT_SECRET     # required for AUTH_MODE=supabase
+#   set SUPABASE_URL and SUPABASE_ANON_KEY (wrangler.jsonc vars or secrets) for splat_bug_search
+wrangler secret put API_AUTH_TOKEN          # optional (service mode only)
 wrangler secret put MODEL_API_KEY           # only for the openai-compatible provider
 wrangler deploy
+```
+
+In the SPA, call the agent with the current session token:
+
+```ts
+import { runAgentTask } from "@/lib/agentClient";
+const { data } = await supabase.auth.getSession();
+const run = await runAgentTask({
+  baseUrl: import.meta.env.VITE_AGENT_URL,
+  accessToken: data.session!.access_token,
+  sessionId: "triage",
+  message: "search my open login bugs",
+});
 ```
 
 ## HTTP API

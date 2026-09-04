@@ -16,6 +16,9 @@
   "vars": {
     "AGENT_ID": "splat-orchestrator",
     "AGENT_VERSION": "0.1.0",
+    // Reuse Splatt's Supabase auth. Requires the SUPABASE_JWT_SECRET secret and,
+    // for the splat_bug_search tool, SUPABASE_URL + SUPABASE_ANON_KEY.
+    "AUTH_MODE": "supabase",
     "MODEL_PROVIDER": "workers-ai",
     "MODEL_ID": "@cf/meta/llama-3.1-8b-instruct",
     // Test/experimentation hook. MUST stay "false" in production so the scripted

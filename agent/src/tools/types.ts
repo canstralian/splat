@@ -12,6 +12,13 @@ import {
 export interface ToolContext {
   runId: string;
   sessionId: string;
+  /** Authenticated owner (Supabase user id) this tool runs on behalf of. */
+  ownerUserId: string;
+  /**
+   * The owner's Supabase access token, for tools that call Supabase under the
+   * user's RLS. Never sent to the model or written to evidence.
+   */
+  userToken?: string;
   env: Env;
   logger: Logger;
   /** Aborted when the tool exceeds its timeout budget. */

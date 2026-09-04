@@ -9,6 +9,7 @@ function newRun(id: string): RunRecord {
   return {
     id,
     sessionId: "sess-state",
+    ownerUserId: "user-state",
     agentId: "a",
     agentVersion: "1",
     status: "running",

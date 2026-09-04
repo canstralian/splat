@@ -9,6 +9,7 @@ export const CAPABILITIES = {
   CONFIG_READ: "config:read",
   MEMORY_READ: "memory:read",
   MEMORY_WRITE: "memory:write",
+  SPLAT_BUGS_READ: "splat:bugs:read",
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];

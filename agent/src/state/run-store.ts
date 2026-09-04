@@ -22,13 +22,14 @@ export class RunStore {
       await this.db
         .prepare(
           `INSERT INTO runs (
-             id, session_id, agent_id, agent_version, status, input, intent,
+             id, session_id, owner_user_id, agent_id, agent_version, status, input, intent,
              outcome, error, tool_call_count, version, created_at, updated_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           record.id,
           record.sessionId,
+          record.ownerUserId,
           record.agentId,
           record.agentVersion,
           record.status,
@@ -156,6 +157,7 @@ export class RunStore {
 interface RunRow {
   id: string;
   session_id: string;
+  owner_user_id: string;
   agent_id: string;
   agent_version: string;
   status: string;
@@ -185,6 +187,7 @@ function rowToRun(row: RunRow): RunRecord {
   return {
     id: row.id,
     sessionId: row.session_id,
+    ownerUserId: row.owner_user_id,
     agentId: row.agent_id,
     agentVersion: row.agent_version,
     status: row.status as RunRecord["status"],

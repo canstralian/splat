@@ -54,6 +54,13 @@ export interface ConversationMessage {
 export interface RunInput {
   sessionId: string;
   message: string;
+  /** Authenticated owner (Supabase user id). Isolation principal. */
+  ownerUserId: string;
+  /**
+   * The owner's Supabase access token, forwarded only to user-scoped tools.
+   * Never sent to the model or written to evidence/logs.
+   */
+  userToken?: string;
   /** Optional caller-supplied idempotency key for the Run. */
   idempotencyKey?: string;
   /**
@@ -72,6 +79,7 @@ export interface RunInput {
 export interface RunRecord {
   id: string;
   sessionId: string;
+  ownerUserId: string;
   agentId: string;
   agentVersion: string;
   status: RunStatus;

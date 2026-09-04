@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CAPABILITIES } from "../governance/capabilities";
 import { ToolExecutionError } from "../errors";
 import { ToolRegistry } from "./registry";
+import { splatBugSearchTool } from "./splat-bugs";
 import type { Tool, ToolContext } from "./types";
 
 /** echo — the simplest read-only tool; useful for connectivity and tests. */
@@ -171,5 +172,6 @@ export function createDefaultRegistry(): ToolRegistry {
     .register(calculatorTool as Tool)
     .register(configReadTool as Tool)
     .register(memoryReadTool as Tool)
-    .register(memoryWriteTool as Tool);
+    .register(memoryWriteTool as Tool)
+    .register(splatBugSearchTool as Tool);
 }

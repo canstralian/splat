@@ -91,6 +91,7 @@ export async function runLifecycle(params: LifecycleParams): Promise<RunOutcome>
   const runRecord: RunRecord = {
     id: runId,
     sessionId: input.sessionId,
+    ownerUserId: input.ownerUserId,
     agentId,
     agentVersion,
     status: "running",
@@ -248,6 +249,8 @@ export async function runLifecycle(params: LifecycleParams): Promise<RunOutcome>
         {
           runId,
           sessionId: input.sessionId,
+          ownerUserId: input.ownerUserId,
+          userToken: input.userToken,
           env,
           logger,
           now: deps.now,

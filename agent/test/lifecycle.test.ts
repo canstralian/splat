@@ -30,6 +30,7 @@ async function runWith(
   const recorder = new EvidenceRecorder(store, env, runId, deps);
   const input: RunInput = {
     sessionId: opts.sessionId ?? "sess-lifecycle",
+    ownerUserId: "user-lifecycle",
     message: opts.message ?? "do the task",
     approvals: opts.approvals,
   };

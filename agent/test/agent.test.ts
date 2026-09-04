@@ -1,49 +1,52 @@
 import { describe, expect, it } from "vitest";
 import { env, SELF } from "cloudflare:test";
 import { getAgentByName } from "agents";
+import { authHeader } from "./helpers/jwt";
 
 const FINAL = [{ action: "final", content: "done" }];
-const AUTH = { authorization: "Bearer test-token" };
 
-describe("Agent initialization (req 1)", () => {
+function startInput(userId: string, sessionId: string, message: string, modelScript: unknown[]) {
+  return { sessionId, ownerUserId: userId, message, modelScript };
+}
+
+describe("Agent initialization (req: agent initialization)", () => {
   it("starts with empty durable session state", async () => {
-    const stub = await getAgentByName(env.ORCHESTRATOR, "sess-init");
+    const stub = await getAgentByName(env.ORCHESTRATOR, "user-init::sess-init");
     const summary = await stub.getSessionSummary();
     expect(summary.runCount).toBe(0);
     expect(summary.lastRunId).toBeNull();
   });
 });
 
-describe("State persistence across calls (req 2)", () => {
+describe("State persistence across calls (req: state persistence)", () => {
   it("increments and persists runCount and transcript", async () => {
-    const stub = await getAgentByName(env.ORCHESTRATOR, "sess-persist");
-    await stub.startRun({ sessionId: "sess-persist", message: "one", modelScript: FINAL });
-    await stub.startRun({ sessionId: "sess-persist", message: "two", modelScript: FINAL });
+    const stub = await getAgentByName(env.ORCHESTRATOR, "user-p::sess-persist");
+    await stub.startRun(startInput("user-p", "sess-persist", "one", FINAL));
+    await stub.startRun(startInput("user-p", "sess-persist", "two", FINAL));
 
     const summary = await stub.getSessionSummary();
     expect(summary.runCount).toBe(2);
     expect(summary.lastStatus).toBe("completed");
 
     const history = await stub.getHistory();
-    // 2 runs x (user + assistant) = 4 messages.
     expect(history.length).toBe(4);
   });
 });
 
-describe("Concurrent state updates (req 3)", () => {
+describe("Concurrent state updates (req: concurrent state)", () => {
   it("serializes concurrent runs on the same session without lost updates", async () => {
-    const stub = await getAgentByName(env.ORCHESTRATOR, "sess-concurrent");
+    const stub = await getAgentByName(env.ORCHESTRATOR, "user-c::sess-concurrent");
     await Promise.all([
-      stub.startRun({ sessionId: "sess-concurrent", message: "a", modelScript: FINAL }),
-      stub.startRun({ sessionId: "sess-concurrent", message: "b", modelScript: FINAL }),
-      stub.startRun({ sessionId: "sess-concurrent", message: "c", modelScript: FINAL }),
+      stub.startRun(startInput("user-c", "sess-concurrent", "a", FINAL)),
+      stub.startRun(startInput("user-c", "sess-concurrent", "b", FINAL)),
+      stub.startRun(startInput("user-c", "sess-concurrent", "c", FINAL)),
     ]);
     const summary = await stub.getSessionSummary();
     expect(summary.runCount).toBe(3);
   });
 });
 
-describe("HTTP integration (auth, run, evidence, replay)", () => {
+describe("HTTP integration with Supabase auth", () => {
   it("serves health without auth", async () => {
     const res = await SELF.fetch("http://agent.test/health");
     expect(res.status).toBe(200);
@@ -51,7 +54,7 @@ describe("HTTP integration (auth, run, evidence, replay)", () => {
     expect(body.status).toBe("ok");
   });
 
-  it("rejects unauthenticated message posts (req: security)", async () => {
+  it("rejects unauthenticated message posts", async () => {
     const res = await SELF.fetch("http://agent.test/v1/sessions/s-int/messages", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -60,10 +63,11 @@ describe("HTTP integration (auth, run, evidence, replay)", () => {
     expect(res.status).toBe(401);
   });
 
-  it("runs a governed task end-to-end over HTTP and exposes evidence + replay", async () => {
+  it("runs a governed task end-to-end and exposes evidence + replay", async () => {
+    const headers = { "content-type": "application/json", ...(await authHeader("user-e2e")) };
     const post = await SELF.fetch("http://agent.test/v1/sessions/s-int/messages", {
       method: "POST",
-      headers: { "content-type": "application/json", ...AUTH },
+      headers,
       body: JSON.stringify({
         message: "add 2 and 3",
         modelScript: [
@@ -78,14 +82,15 @@ describe("HTTP integration (auth, run, evidence, replay)", () => {
     expect(posted.run.toolCallCount).toBe(1);
     const runId = posted.run.runId;
 
-    const runRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}`, { headers: AUTH });
+    const auth = await authHeader("user-e2e");
+    const runRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}`, { headers: auth });
     expect(runRes.status).toBe(200);
 
-    const evRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}/evidence`, { headers: AUTH });
+    const evRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}/evidence`, { headers: auth });
     const ev = (await evRes.json()) as { evidence: unknown[] };
     expect(ev.evidence.length).toBeGreaterThan(0);
 
-    const replayRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}/replay`, { headers: AUTH });
+    const replayRes = await SELF.fetch(`http://agent.test/v1/runs/${runId}/replay`, { headers: auth });
     const replay = (await replayRes.json()) as { replay: { consistent: boolean } };
     expect(replay.replay.consistent).toBe(true);
   });
@@ -93,7 +98,7 @@ describe("HTTP integration (auth, run, evidence, replay)", () => {
   it("rejects invalid request bodies with 400", async () => {
     const res = await SELF.fetch("http://agent.test/v1/sessions/s-int/messages", {
       method: "POST",
-      headers: { "content-type": "application/json", ...AUTH },
+      headers: { "content-type": "application/json", ...(await authHeader("user-e2e")) },
       body: JSON.stringify({ message: "" }),
     });
     expect(res.status).toBe(400);

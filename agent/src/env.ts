@@ -31,8 +31,14 @@ export interface Env {
   MAX_WALL_CLOCK_MS?: string;
   TOOL_DEFAULT_TIMEOUT_MS?: string;
 
+  // --- Splatt integration (reuse existing Supabase auth + data) ---
+  AUTH_MODE?: string; // "supabase" (default) | "service"
+  SUPABASE_URL?: string; // Splatt's Supabase project URL (for data tools)
+  SUPABASE_ANON_KEY?: string; // Splatt's publishable/anon key (public)
+
   // --- Secrets (never logged, never sent to the model) ---
-  API_AUTH_TOKEN?: string;
+  API_AUTH_TOKEN?: string; // service-mode token (internal callers only)
+  SUPABASE_JWT_SECRET?: string; // verifies Supabase user access tokens
   MODEL_API_KEY?: string;
 }
 

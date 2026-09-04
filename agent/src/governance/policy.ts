@@ -31,6 +31,7 @@ export const DEFAULT_POLICY: Policy = {
     "config:read",
     "memory:read",
     "memory:write",
+    "splat:bugs:read",
   ],
   prohibitedCapabilities: [],
   approvalRequiredCapabilities: ["memory:write"],
