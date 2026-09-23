@@ -15,11 +15,17 @@ import {
 } from "../src/errors";
 import { Logger } from "../src/observability/logger";
 
-function baseCtx(overrides: Partial<{ sessionId: string; idempotencyKey: string }> = {}) {
+function baseCtx(
+  overrides: Partial<{
+    sessionId: string;
+    idempotencyKey: string;
+    ownerUserId: string;
+  }> = {},
+) {
   return {
     runId: "run-test",
     sessionId: overrides.sessionId ?? "sess-tools",
-    ownerUserId: "user-tools",
+    ownerUserId: overrides.ownerUserId ?? "user-tools",
     env,
     logger: new Logger(),
     now: () => Date.now(),
@@ -94,7 +100,40 @@ describe("Successful tool execution (req 6)", () => {
       1000,
     );
     expect(r.output).toEqual({ key: "color", value: "magenta" });
-  });
+  })
+
+  it("isolates memory for two owners using the same session and key", async () => {
+    const shared = { sessionId: "shared-memory" };
+
+    await invokeTool(
+      memoryWriteTool as Tool,
+      { key: "color", value: "magenta" },
+      baseCtx({ ...shared, ownerUserId: "user-A", idempotencyKey: "a-1" }),
+      1000,
+    );
+    await invokeTool(
+      memoryWriteTool as Tool,
+      { key: "color", value: "cyan" },
+      baseCtx({ ...shared, ownerUserId: "user-B", idempotencyKey: "b-1" }),
+      1000,
+    );
+
+    const a = await invokeTool(
+      memoryReadTool as Tool,
+      { key: "color" },
+      baseCtx({ ...shared, ownerUserId: "user-A" }),
+      1000,
+    );
+    const b = await invokeTool(
+      memoryReadTool as Tool,
+      { key: "color" },
+      baseCtx({ ...shared, ownerUserId: "user-B" }),
+      1000,
+    );
+
+    expect(a.output).toEqual({ key: "color", value: "magenta" });
+    expect(b.output).toEqual({ key: "color", value: "cyan" });
+  });;
 });
 
 describe("Tool failure (req 7)", () => {
