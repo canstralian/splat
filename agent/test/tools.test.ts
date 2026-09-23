@@ -100,7 +100,7 @@ describe("Successful tool execution (req 6)", () => {
       1000,
     );
     expect(r.output).toEqual({ key: "color", value: "magenta" });
-  })
+  });
 
   it("isolates memory for two owners using the same session and key", async () => {
     const shared = { sessionId: "shared-memory" };
@@ -133,7 +133,7 @@ describe("Successful tool execution (req 6)", () => {
 
     expect(a.output).toEqual({ key: "color", value: "magenta" });
     expect(b.output).toEqual({ key: "color", value: "cyan" });
-  });;
+  });
 });
 
 describe("Tool failure (req 7)", () => {
