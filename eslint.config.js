@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  // `agent/` is a self-contained Cloudflare Workers subproject with its own
+  // ESLint/TypeScript config; it must not be linted with the SPA's React ruleset.
+  { ignores: ["dist", "agent"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
