@@ -105,9 +105,9 @@ export const memoryReadTool: Tool<
   evidenceDescription: "Records the memory key read.",
   async execute(input, ctx: ToolContext) {
     const row = await ctx.env.DB.prepare(
-      "SELECT value FROM agent_memory WHERE session_id = ? AND key = ?",
+      "SELECT value FROM agent_memory WHERE owner_user_id = ? AND session_id = ? AND key = ?",
     )
-      .bind(ctx.sessionId, input.key)
+      .bind(ctx.ownerUserId, ctx.sessionId, input.key)
       .first<{ value: string }>();
     return { key: input.key, value: row?.value ?? null };
   },
@@ -141,9 +141,9 @@ export const memoryWriteTool: Tool<
   async execute(input, ctx: ToolContext) {
     // Idempotency guard: skip if this exact write was already applied.
     const existing = await ctx.env.DB.prepare(
-      "SELECT last_idempotency_key FROM agent_memory WHERE session_id = ? AND key = ?",
+      "SELECT last_idempotency_key FROM agent_memory WHERE owner_user_id = ? AND session_id = ? AND key = ?",
     )
-      .bind(ctx.sessionId, input.key)
+      .bind(ctx.ownerUserId, ctx.sessionId, input.key)
       .first<{ last_idempotency_key: string }>();
 
     if (existing?.last_idempotency_key === ctx.idempotencyKey) {
@@ -151,14 +151,21 @@ export const memoryWriteTool: Tool<
     }
 
     await ctx.env.DB.prepare(
-      `INSERT INTO agent_memory (session_id, key, value, last_idempotency_key, updated_at)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(session_id, key) DO UPDATE SET
+      `INSERT INTO agent_memory (owner_user_id, session_id, key, value, last_idempotency_key, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(owner_user_id, session_id, key) DO UPDATE SET
          value = excluded.value,
          last_idempotency_key = excluded.last_idempotency_key,
          updated_at = excluded.updated_at`,
     )
-      .bind(ctx.sessionId, input.key, input.value, ctx.idempotencyKey, ctx.now())
+      .bind(
+        ctx.ownerUserId,
+        ctx.sessionId,
+        input.key,
+        input.value,
+        ctx.idempotencyKey,
+        ctx.now(),
+      )
       .run();
 
     return { key: input.key, applied: true, idempotencyKey: ctx.idempotencyKey };
